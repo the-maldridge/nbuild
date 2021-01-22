@@ -54,6 +54,7 @@ XBPS_ALLOW_CHROOT_BREAKOUT=yes
 !
 ln -s / /hostrepo/masterdir
 ./hostrepo/xbps-src "$@"
+cp -rv /hostrepo/hostdir/binpkgs/* /alloc/data/
 EOF
         destination = "local/entrypoint"
         perms = "755"
