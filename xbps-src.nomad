@@ -57,7 +57,48 @@ ln -s / /hostrepo/masterdir
 cp -rv /hostrepo/hostdir/binpkgs/* /alloc/data/
 EOF
         destination = "local/entrypoint"
-        perms = "755"
+        perms = "0755"
+      }
+    }
+
+    task "mc" {
+      driver = "docker"
+
+      vault {
+        policies = ["void-secrets-minio-nbuild"]
+      }
+
+      lifecycle {
+        hook = "poststop"
+      }
+
+      config {
+        image = "minio/mc:RELEASE.2021-01-05T05-03-58Z"
+        entrypoint = ["/local/entrypoint"]
+      }
+
+      template {
+        data = <<EOT
+#!/bin/bash
+{{- with service "minio" }}
+{{- with $c := index . 0 }}
+{{- with $v := secret "secret/minio/nbuild" }}
+mc alias set void http://{{$c.Address}}:{{$c.Port}} {{$v.Data.access_key}} "{{$v.Data.secret_key}}"
+{{- end }}
+{{- end }}
+{{- end }}
+for f in /alloc/data/*.xbps ; do
+        file=$(basename $f)
+        f1=$${file/*-/}
+        f2=$${f1/.xbps/}
+        pkg=$${file%-*}
+        arch=$${f2##*.}
+        ver=$${f2%.*}
+        mc cp $f void/packages/$arch/$file
+done
+EOT
+        destination = "local/entrypoint"
+        perms = "0755"
       }
     }
   }
