@@ -6,22 +6,24 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/the-maldridge/nbuild/pkg/srcpkgs"
+	"github.com/the-maldridge/nbuild/pkg/graph"
 )
 
 func main() {
 	appLogger := hclog.New(&hclog.LoggerOptions{
 		Name:  "nbuild",
-		Level: hclog.LevelFromString("TRACE"),
+		Level: hclog.LevelFromString("DEBUG"),
 	})
+	appLogger.Info("nbuild is initializing")
 
-	srctree := srcpkgs.NewTree(appLogger)
+	srctree := graph.New(appLogger)
 
-	if err := srctree.LoadVirtual("etc/defaults.virtual"); err != nil {
+	if err := srctree.LoadVirtual(); err != nil {
 		return
 	}
 
-	if err := srctree.Import("srcpkgs", 100); err != nil {
+	appLogger.Info("Importer performing initial pass")
+	if err := srctree.Import(); err != nil {
 		return
 	}
 

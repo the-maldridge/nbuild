@@ -1,4 +1,4 @@
-package srcpkgs
+package graph
 
 import (
 	"bufio"
@@ -12,15 +12,19 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
+
+	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
-// NewTree returns a new blank tree with the logger configured
-func NewTree(l hclog.Logger) *PkgTree {
-	x := PkgTree{
-		l:            l.Named("srcpkg"),
+// New returns a new blank tree with the logger configured
+func New(l hclog.Logger) *PkgGraph {
+	x := PkgGraph{
+		l:            l.Named("graph"),
+		basePath:     "void-packages",
+		parallelism:  10,
 		SrcPkgsMutex: new(sync.Mutex),
-		SrcPkgs:      make(map[string]*SrcPkg),
-		Pkgs:         make(map[string]*Package),
+		SrcPkgs:      make(map[string]*types.SrcPkg),
+		pkgs:         make(map[string]*types.Package),
 		Virtual:      make(map[string]string),
 		seen:         make(map[string]struct{}),
 		bad:          make(map[string]string),
@@ -30,17 +34,16 @@ func NewTree(l hclog.Logger) *PkgTree {
 
 // Import tries to read every srcpkg from disk and then converge the
 // graph.
-func (t *PkgTree) Import(b string, parallelism int) error {
-	paths, _ := filepath.Glob(filepath.Join(b, "*"))
+func (t *PkgGraph) Import() error {
+	paths, _ := filepath.Glob(filepath.Join(t.basePath, "srcpkgs", "*"))
 	pkgCount := 0
 
 	loadCh := make(chan string, 200)
 	wg := new(sync.WaitGroup)
 
-	for i := 0; i < parallelism; i++ {
+	for i := 0; i < t.parallelism; i++ {
 		wg.Add(1)
-		go func() {
-			id := i
+		go func(id int) {
 			for {
 				p, more := <-loadCh
 				if !more {
@@ -57,16 +60,16 @@ func (t *PkgTree) Import(b string, parallelism int) error {
 				t.SrcPkgsMutex.Lock()
 				t.SrcPkgs[p] = spkg
 
-				pkg := Package{}
+				pkg := types.Package{}
 				pkg.Name = p
 				pkg.Version = spkg.Version
 				pkg.Revision = spkg.Revision
-				t.Pkgs[p] = &pkg
+				t.pkgs[p] = &pkg
 
 				pkgCount++
 				t.SrcPkgsMutex.Unlock()
 			}
-		}()
+		}(i)
 	}
 
 	for _, p := range paths {
@@ -80,7 +83,6 @@ func (t *PkgTree) Import(b string, parallelism int) error {
 			// We only care about the directories
 			continue
 		}
-		t.l.Trace("PathInfo", "info", pinfo)
 		pkgname := filepath.Base(p)
 		if !t.pkgExists(pkgname) {
 			continue
@@ -97,43 +99,44 @@ func (t *PkgTree) Import(b string, parallelism int) error {
 // ResolveGraph converst SrcPkgs to Pkgs and hooks up the dependency
 // lists.  It is responsible for constructing the graph that
 // ultimately is used to drive package builds.
-func (t *PkgTree) ResolveGraph() {
-	for p := range t.Pkgs {
+func (t *PkgGraph) ResolveGraph() {
+	for p := range t.pkgs {
 		t.l.Debug("Resolving package", "pkg", p)
 		sp := t.SrcPkgs[p]
 
-		hd := make([]*Package, len(sp.HostDepends))
+		hd := make([]*types.Package, len(sp.HostDepends))
 		i := 0
 		for d := range sp.HostDepends {
 			t.l.Trace("Package hostmakedepends", "pkg", p, "hostmakedepends", d)
-			hd[i] = t.Pkgs[d]
+			hd[i] = t.pkgs[d]
 			i++
 		}
-		t.Pkgs[p].HostDepends = hd
+		t.pkgs[p].HostDepends = hd
 
-		md := make([]*Package, len(sp.MakeDepends))
+		md := make([]*types.Package, len(sp.MakeDepends))
 		i = 0
 		for d := range sp.MakeDepends {
 			t.l.Trace("Package makedepends", "pkg", p, "makedepends", d)
-			md[i] = t.Pkgs[d]
+			md[i] = t.pkgs[d]
 			i++
 		}
-		t.Pkgs[p].MakeDepends = md
+		t.pkgs[p].MakeDepends = md
 
-		rd := make([]*Package, len(sp.Depends))
+		rd := make([]*types.Package, len(sp.Depends))
 		i = 0
 		for d := range sp.Depends {
 			t.l.Trace("Package depends", "pkg", p, "depends", d)
-			rd[i] = t.Pkgs[d]
+			rd[i] = t.pkgs[d]
 			i++
 		}
-		t.Pkgs[p].Depends = rd
+		t.pkgs[p].Depends = rd
 	}
 }
 
-// LoadVirtual loads the virtual packages map from the location 'loc'
-func (t *PkgTree) LoadVirtual(loc string) error {
-	f, err := os.Open(loc)
+// LoadVirtual loads the virtual package map from the defaults file in
+// the checkout.'
+func (t *PkgGraph) LoadVirtual() error {
+	f, err := os.Open(filepath.Join(t.basePath, "etc/defaults.virtual"))
 	if err != nil {
 		return err
 	}
@@ -153,7 +156,7 @@ func (t *PkgTree) LoadVirtual(loc string) error {
 
 // ResolvePackage tries to return a soure package that is referenced
 // by any of the means that are valid in xbps-src
-func (t *PkgTree) ResolvePackage(name string) (*SrcPkg, error) {
+func (t *PkgGraph) ResolvePackage(name string) (*types.SrcPkg, error) {
 	pp, ok := t.SrcPkgs[name]
 	if ok {
 		t.l.Trace("Already loaded package", "package", name)
@@ -183,9 +186,9 @@ func (t *PkgTree) ResolvePackage(name string) (*SrcPkg, error) {
 	return t.ResolvePackage(n)
 }
 
-func (t *PkgTree) loadFromDisk(name string) (*SrcPkg, error) {
-	p := SrcPkg{}
-	dump, err := exec.Command("./xbps-src", "dbulk-dump", name).Output()
+func (t *PkgGraph) loadFromDisk(name string) (*types.SrcPkg, error) {
+	p := types.SrcPkg{}
+	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "dbulk-dump", name).Output()
 	t.l.Trace("exec error", "error", err)
 	var exitError *exec.ExitError
 	if err != nil && errors.As(err, &exitError) {
@@ -225,6 +228,7 @@ func (t *PkgTree) loadFromDisk(name string) (*SrcPkg, error) {
 	t.l.Trace("Parsed Tokens", "tokens", tokens)
 
 	p.Name = strings.TrimSpace(tokens["pkgname"])
+	p.Dirty = true
 	p.Version = tokens["version"]
 	rev, err := strconv.Atoi(tokens["revision"])
 	if err != nil {
@@ -257,7 +261,7 @@ func (t *PkgTree) loadFromDisk(name string) (*SrcPkg, error) {
 	return &p, nil
 }
 
-func (t *PkgTree) getpkgname(s string) (string, error) {
+func (t *PkgGraph) getpkgname(s string) (string, error) {
 	dump, err := exec.Command("xbps-uhelper", "getpkgname", s).Output()
 	if err != nil {
 		t.l.Trace("Failed to call command", "command", "xbps-uhelper getpkgname "+s)
@@ -266,7 +270,7 @@ func (t *PkgTree) getpkgname(s string) (string, error) {
 	return string(dump), nil
 }
 
-func (t *PkgTree) getpkgdepname(s string) (string, error) {
+func (t *PkgGraph) getpkgdepname(s string) (string, error) {
 	dump, err := exec.Command("xbps-uhelper", "getpkgdepname", s).Output()
 	if err != nil {
 		return "", err
@@ -274,7 +278,7 @@ func (t *PkgTree) getpkgdepname(s string) (string, error) {
 	return string(dump), nil
 }
 
-func (t *PkgTree) pkgExists(name string) bool {
-	_, err := os.Lstat(filepath.Join("srcpkgs", name, "template"))
+func (t *PkgGraph) pkgExists(name string) bool {
+	_, err := os.Lstat(filepath.Join(t.basePath, "srcpkgs", name, "template"))
 	return !os.IsNotExist(err)
 }
