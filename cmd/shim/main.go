@@ -8,6 +8,7 @@ import (
 
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/repo"
+	"github.com/the-maldridge/nbuild/pkg/source"
 )
 
 func main() {
@@ -49,5 +50,13 @@ func main() {
 		appLogger.Info("repodata contains some packages", "count", rss.PkgCount())
 		p, _ := rss.GetPackage("NetAuth")
 		appLogger.Info("Example package", "pkg", p)
+	case "git":
+		repo := source.New(appLogger)
+		repo.Path = "void-packages"
+		repo.Url = "https://github.com/void-linux/void-packages"
+		repo.Bootstrap()
+		repo.Fetch()
+		// Some random commit
+		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	}
 }
