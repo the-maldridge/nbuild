@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -63,7 +62,6 @@ func (t *PkgGraph) Import() error {
 				pkg := types.Package{}
 				pkg.Name = p
 				pkg.Version = spkg.Version
-				pkg.Revision = spkg.Revision
 				t.pkgs[p] = &pkg
 
 				pkgCount++
@@ -229,12 +227,7 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.SrcPkg, error) {
 
 	p.Name = strings.TrimSpace(tokens["pkgname"])
 	p.Dirty = true
-	p.Version = tokens["version"]
-	rev, err := strconv.Atoi(tokens["revision"])
-	if err != nil {
-		rev = 0
-	}
-	p.Revision = rev
+	p.Version = tokens["version"] + "_" + tokens["revision"]
 
 	hmd := strings.Fields(tokens["hostmakedepends"])
 	p.HostDepends = make(map[string]struct{}, len(hmd))

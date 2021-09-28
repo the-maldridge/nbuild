@@ -8,7 +8,6 @@ type SrcPkg struct {
 	Dirty       bool
 	Failed      bool
 	Version     string
-	Revision    int
 	HostDepends map[string]struct{}
 	MakeDepends map[string]struct{}
 	Depends     map[string]struct{}
@@ -17,8 +16,7 @@ type SrcPkg struct {
 // Package represents a single package in the srcpkgs collection.
 type Package struct {
 	Name        string
-	Version     string
-	Revision    int
+	Version     string `plist:"pkgver"`
 	HostDepends []*Package
 	MakeDepends []*Package
 	Depends     []*Package
