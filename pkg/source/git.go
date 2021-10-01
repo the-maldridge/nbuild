@@ -1,6 +1,7 @@
 package source
 
 import (
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -104,7 +105,7 @@ func (r *RepoMngr) Checkout(commit string) ([]string, error) {
 	changedFiles := make([]string, len(diffFileStats))
 	for i := 0; i < len(diffFileStats); i++ {
 		r.l.Trace("File was changed in checkout", "path", diffFileStats[i].Name)
-		changedFiles[i] = diffFileStats[i].Name
+		changedFiles[i] = filepath.Join(r.Path, diffFileStats[i].Name)
 	}
 
 	return changedFiles, nil

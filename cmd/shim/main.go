@@ -18,7 +18,7 @@ func main() {
 	})
 	appLogger.Info("nbuild is initializing")
 
-	srctree := graph.New(appLogger)
+	srctree := graph.New(appLogger, graph.SpecTuple{"x86_64", "x86_64"})
 
 	switch os.Args[1] {
 	case "import":
@@ -27,13 +27,9 @@ func main() {
 		}
 
 		appLogger.Info("Importer performing initial pass")
-		if err := srctree.Import(); err != nil {
+		if err := srctree.ImportAll(); err != nil {
 			return
 		}
-
-		appLogger.Info("Import Complete, Resolving Graph")
-		srctree.ResolveGraph()
-		appLogger.Info("Resolution complete")
 
 		f, _ := os.Create("state.json")
 		defer f.Close()
@@ -57,5 +53,9 @@ func main() {
 		repo.Fetch()
 		// Some random commit
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
+	case "multigraph":
+		mgr := graph.NewManager(appLogger, []graph.SpecTuple{{"x86_64", "x86_64"}, {"x86_64", "armv7l"}})
+		appLogger.Info("Bootstrapping multigraph", "return", mgr.Bootstrap())
+		mgr.SyncTo("0ee5b487dca9d6a2476beeb93e9a75d2b5751953")
 	}
 }

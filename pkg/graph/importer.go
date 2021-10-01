@@ -16,25 +16,43 @@ import (
 )
 
 // New returns a new blank tree with the logger configured
-func New(l hclog.Logger) *PkgGraph {
+func New(l hclog.Logger, spec SpecTuple) *PkgGraph {
 	x := PkgGraph{
-		l:            l.Named("graph"),
-		basePath:     "void-packages",
-		parallelism:  10,
-		SrcPkgsMutex: new(sync.Mutex),
-		SrcPkgs:      make(map[string]*types.SrcPkg),
-		pkgs:         make(map[string]*types.Package),
-		Virtual:      make(map[string]string),
-		seen:         make(map[string]struct{}),
-		bad:          make(map[string]string),
+		l:           l.Named(spec.String()),
+		basePath:    "void-packages",
+		parallelism: 10,
+		PkgsMutex:   new(sync.Mutex),
+		Pkgs:        make(map[string]*types.Package),
+		AuxMutex:    new(sync.Mutex),
+		Virtual:     make(map[string]string),
+		Bad:         make(map[string]string),
+		Spec:        spec,
 	}
 	return &x
 }
 
-// Import tries to read every srcpkg from disk and then converge the
+// ImportAll tries to read every srcpkg from disk and then converge the
 // graph.
-func (t *PkgGraph) Import() error {
+func (t *PkgGraph) ImportAll() error {
 	paths, _ := filepath.Glob(filepath.Join(t.basePath, "srcpkgs", "*"))
+	return t.importFromPaths(paths)
+}
+
+// ImportChanged looks at a range of paths and imports just those.
+func (t *PkgGraph) ImportChanged(paths []string) error {
+	for i := range paths {
+		if filepath.Base(paths[i]) == "template" {
+			// Something in a template changed, we need to
+			// rewrite the path to be the pkgname.
+			paths[i] = filepath.Dir(paths[i])
+		}
+	}
+	return t.importFromPaths(paths)
+}
+
+// importFromPaths is a shared function for both import codepaths and
+// handles the import of packages based on a set of changed paths.
+func (t *PkgGraph) importFromPaths(paths []string) error {
 	pkgCount := 0
 
 	loadCh := make(chan string, 200)
@@ -56,16 +74,11 @@ func (t *PkgGraph) Import() error {
 					t.l.Warn("Error loading package", "package", p, "error", err)
 					continue
 				}
-				t.SrcPkgsMutex.Lock()
-				t.SrcPkgs[p] = spkg
-
-				pkg := types.Package{}
-				pkg.Name = p
-				pkg.Version = spkg.Version
-				t.pkgs[p] = &pkg
+				t.PkgsMutex.Lock()
+				t.Pkgs[p] = spkg
 
 				pkgCount++
-				t.SrcPkgsMutex.Unlock()
+				t.PkgsMutex.Unlock()
 			}
 		}(i)
 	}
@@ -74,6 +87,10 @@ func (t *PkgGraph) Import() error {
 		pinfo, err := os.Lstat(p)
 		if err != nil {
 			t.l.Warn("Error with path", "error", err, "path", p)
+			t.PkgsMutex.Lock()
+			pkgname := filepath.Base(p)
+			delete(t.Pkgs, pkgname)
+			t.PkgsMutex.Unlock()
 			continue
 		}
 
@@ -90,45 +107,7 @@ func (t *PkgGraph) Import() error {
 	close(loadCh)
 	wg.Wait()
 	t.l.Debug("Loaded packages", "count", pkgCount)
-	t.l.Debug("Bad pkgs", "pkgs", t.bad)
 	return nil
-}
-
-// ResolveGraph converst SrcPkgs to Pkgs and hooks up the dependency
-// lists.  It is responsible for constructing the graph that
-// ultimately is used to drive package builds.
-func (t *PkgGraph) ResolveGraph() {
-	for p := range t.pkgs {
-		t.l.Debug("Resolving package", "pkg", p)
-		sp := t.SrcPkgs[p]
-
-		hd := make([]*types.Package, len(sp.HostDepends))
-		i := 0
-		for d := range sp.HostDepends {
-			t.l.Trace("Package hostmakedepends", "pkg", p, "hostmakedepends", d)
-			hd[i] = t.pkgs[d]
-			i++
-		}
-		t.pkgs[p].HostDepends = hd
-
-		md := make([]*types.Package, len(sp.MakeDepends))
-		i = 0
-		for d := range sp.MakeDepends {
-			t.l.Trace("Package makedepends", "pkg", p, "makedepends", d)
-			md[i] = t.pkgs[d]
-			i++
-		}
-		t.pkgs[p].MakeDepends = md
-
-		rd := make([]*types.Package, len(sp.Depends))
-		i = 0
-		for d := range sp.Depends {
-			t.l.Trace("Package depends", "pkg", p, "depends", d)
-			rd[i] = t.pkgs[d]
-			i++
-		}
-		t.pkgs[p].Depends = rd
-	}
 }
 
 // LoadVirtual loads the virtual package map from the defaults file in
@@ -141,6 +120,7 @@ func (t *PkgGraph) LoadVirtual() error {
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 
+	t.AuxMutex.Lock()
 	for scanner.Scan() {
 		l := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(l, "#") || l == "" {
@@ -149,13 +129,14 @@ func (t *PkgGraph) LoadVirtual() error {
 		flds := strings.Fields(l)
 		t.Virtual[flds[0]] = flds[1]
 	}
+	t.AuxMutex.Unlock()
 	return nil
 }
 
 // ResolvePackage tries to return a soure package that is referenced
 // by any of the means that are valid in xbps-src
-func (t *PkgGraph) ResolvePackage(name string) (*types.SrcPkg, error) {
-	pp, ok := t.SrcPkgs[name]
+func (t *PkgGraph) ResolvePackage(name string) (*types.Package, error) {
+	pp, ok := t.Pkgs[name]
 	if ok {
 		t.l.Trace("Already loaded package", "package", name)
 		return pp, nil
@@ -184,14 +165,16 @@ func (t *PkgGraph) ResolvePackage(name string) (*types.SrcPkg, error) {
 	return t.ResolvePackage(n)
 }
 
-func (t *PkgGraph) loadFromDisk(name string) (*types.SrcPkg, error) {
-	p := types.SrcPkg{}
-	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "dbulk-dump", name).Output()
+func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
+	p := types.Package{}
+	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "-a", t.Spec.Target, "dbulk-dump", name).Output()
 	t.l.Trace("exec error", "error", err)
 	var exitError *exec.ExitError
 	if err != nil && errors.As(err, &exitError) {
 		stderr := string(exitError.Stderr)
-		t.bad[name] = stderr
+		t.AuxMutex.Lock()
+		t.Bad[name] = stderr
+		t.AuxMutex.Unlock()
 		return nil, err
 	} else if err != nil {
 		return nil, err
@@ -248,9 +231,9 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.SrcPkg, error) {
 	}
 
 	t.l.Trace("Loaded Package", "data", p)
-	t.SrcPkgsMutex.Lock()
-	t.SrcPkgs[name] = &p
-	t.SrcPkgsMutex.Unlock()
+	t.PkgsMutex.Lock()
+	t.Pkgs[name] = &p
+	t.PkgsMutex.Unlock()
 	return &p, nil
 }
 
