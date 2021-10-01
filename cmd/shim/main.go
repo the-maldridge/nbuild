@@ -53,7 +53,6 @@ func main() {
 	case "git":
 		repo := source.New(appLogger)
 		repo.Path = "void-packages"
-		repo.Url = "https://github.com/void-linux/void-packages"
 		repo.Bootstrap()
 		repo.Fetch()
 		// Some random commit

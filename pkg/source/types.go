@@ -11,7 +11,6 @@ import (
 type RepoMngr struct {
 	l    hclog.Logger
 	Path string
-	Url  string
 	Mu   *sync.Mutex
 	repo *git.Repository
 }
