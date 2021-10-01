@@ -18,6 +18,11 @@ func New(l hclog.Logger) *RepoMngr {
 	return &x
 }
 
+// SetBasepath sets up the path for the repo to be written to.
+func (r *RepoMngr) SetBasepath(p string) {
+	r.Path = p
+}
+
 // Create a git repository at Path from URL
 func (r *RepoMngr) Bootstrap() error {
 	var err error
