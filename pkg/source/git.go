@@ -40,6 +40,17 @@ func (r *RepoMngr) Bootstrap() error {
 	return nil
 }
 
+// Get the current HEAD hash
+func (r *RepoMngr) At() (string, error) {
+	var err error
+	head, err := r.repo.Head()
+	if err != nil {
+		r.l.Trace("Error getting HEAD")
+		return "", err
+	}
+	return head.Hash().String(), nil
+}
+
 // Checkout a particular revision
 func (r *RepoMngr) Checkout(commit string) ([]string, error) {
 	if r.repo == nil {
