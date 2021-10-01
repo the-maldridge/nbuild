@@ -24,17 +24,12 @@ func (r *RepoMngr) Bootstrap() error {
 	if r.Path == "" {
 		r.l.Warn("Error in repo manager, path must be set to bootstrap")
 	}
-	if r.Url == "" {
-		r.l.Warn("Error in repo manager, url must be set to bootstrap")
-	}
 	r.Mu.Lock()
 	defer r.Mu.Unlock()
-	r.l.Debug("Cloning repository", "path", r.Path, "url", r.Url)
-	// Don't do a shallow clone (Depth: BIG)
-	r.repo, err = git.PlainClone(r.Path, false,
-		&git.CloneOptions{URL: r.Url, Depth: 99999999})
+	r.l.Debug("Opening repository", "path", r.Path)
+	r.repo, err = git.PlainOpen(r.Path)
 	if err != nil {
-		r.l.Trace("Error running PlainClone")
+		r.l.Trace("Error opening repository", "path", r.Path)
 		return err
 	}
 	return nil
