@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 
 	"github.com/hashicorp/go-hclog"
@@ -9,6 +8,8 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/source"
+	"github.com/the-maldridge/nbuild/pkg/storage"
+	_ "github.com/the-maldridge/nbuild/pkg/storage/bc"
 )
 
 func main() {
@@ -18,26 +19,14 @@ func main() {
 	})
 	appLogger.Info("nbuild is initializing")
 
-	srctree := graph.New(appLogger, graph.SpecTuple{"x86_64", "x86_64"})
-
 	switch os.Args[1] {
 	case "import":
+		srctree := graph.New(appLogger, graph.SpecTuple{"x86_64", "x86_64"})
 		if err := srctree.LoadVirtual(); err != nil {
 			return
 		}
-
 		appLogger.Info("Importer performing initial pass")
 		if err := srctree.ImportAll(); err != nil {
-			return
-		}
-
-		f, _ := os.Create("state.json")
-		defer f.Close()
-
-		enc := json.NewEncoder(f)
-
-		if err := enc.Encode(srctree); err != nil {
-			appLogger.Error("Error marshalling", "error", err)
 			return
 		}
 	case "repodata":
@@ -55,7 +44,17 @@ func main() {
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	case "multigraph":
 		mgr := graph.NewManager(appLogger, []graph.SpecTuple{{"x86_64", "x86_64"}, {"x86_64", "armv7l"}})
+
+		storage.SetLogger(appLogger)
+		storage.DoCallbacks()
+		store, err := storage.Initialize("bitcask")
+		if err != nil {
+			appLogger.Error("Couldn't initialize storage", "error", err)
+			return
+		}
+		mgr.EnablePersistence(store)
 		appLogger.Info("Bootstrapping multigraph", "return", mgr.Bootstrap())
 		mgr.SyncTo("0ee5b487dca9d6a2476beeb93e9a75d2b5751953")
+		store.Close()
 	}
 }

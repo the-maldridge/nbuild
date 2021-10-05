@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/the-maldridge/nbuild/pkg/storage"
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
@@ -21,6 +22,12 @@ type PkgGraph struct {
 	basePath    string
 	parallelism int
 
+	atom Atom
+}
+
+// Atom is a storage struct that contains all the serializable data
+// for a single arch graph.
+type Atom struct {
 	Pkgs    map[string]*types.Package
 	Virtual map[string]string
 
@@ -45,6 +52,9 @@ type Manager struct {
 	graphs   map[string]*PkgGraph
 	specs    []SpecTuple
 	basepath string
+	rev      string
+
+	storage storage.Storage
 }
 
 // A SpecTuple is a listing of the host and target arch.
@@ -60,4 +70,5 @@ type CheckoutManager interface {
 	Bootstrap() error
 	Fetch() error
 	Checkout(string) ([]string, error)
+	At() (string, error)
 }

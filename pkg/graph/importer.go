@@ -22,11 +22,13 @@ func New(l hclog.Logger, spec SpecTuple) *PkgGraph {
 		basePath:    "void-packages",
 		parallelism: 10,
 		PkgsMutex:   new(sync.Mutex),
-		Pkgs:        make(map[string]*types.Package),
 		AuxMutex:    new(sync.Mutex),
-		Virtual:     make(map[string]string),
-		Bad:         make(map[string]string),
-		Spec:        spec,
+		atom: Atom{
+			Pkgs:    make(map[string]*types.Package),
+			Virtual: make(map[string]string),
+			Bad:     make(map[string]string),
+			Spec:    spec,
+		},
 	}
 	return &x
 }
@@ -75,7 +77,7 @@ func (t *PkgGraph) importFromPaths(paths []string) error {
 					continue
 				}
 				t.PkgsMutex.Lock()
-				t.Pkgs[p] = spkg
+				t.atom.Pkgs[p] = spkg
 
 				pkgCount++
 				t.PkgsMutex.Unlock()
@@ -89,7 +91,7 @@ func (t *PkgGraph) importFromPaths(paths []string) error {
 			t.l.Warn("Error with path", "error", err, "path", p)
 			t.PkgsMutex.Lock()
 			pkgname := filepath.Base(p)
-			delete(t.Pkgs, pkgname)
+			delete(t.atom.Pkgs, pkgname)
 			t.PkgsMutex.Unlock()
 			continue
 		}
@@ -127,7 +129,7 @@ func (t *PkgGraph) LoadVirtual() error {
 			continue
 		}
 		flds := strings.Fields(l)
-		t.Virtual[flds[0]] = flds[1]
+		t.atom.Virtual[flds[0]] = flds[1]
 	}
 	t.AuxMutex.Unlock()
 	return nil
@@ -136,14 +138,14 @@ func (t *PkgGraph) LoadVirtual() error {
 // ResolvePackage tries to return a soure package that is referenced
 // by any of the means that are valid in xbps-src
 func (t *PkgGraph) ResolvePackage(name string) (*types.Package, error) {
-	pp, ok := t.Pkgs[name]
+	pp, ok := t.atom.Pkgs[name]
 	if ok {
 		t.l.Trace("Already loaded package", "package", name)
 		return pp, nil
 	}
 
 	if strings.HasPrefix(name, "virtual?") {
-		name = t.Virtual[strings.ReplaceAll(name, "virtual?", "")]
+		name = t.atom.Virtual[strings.ReplaceAll(name, "virtual?", "")]
 		return t.ResolvePackage(name)
 	}
 
@@ -167,13 +169,13 @@ func (t *PkgGraph) ResolvePackage(name string) (*types.Package, error) {
 
 func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 	p := types.Package{}
-	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "-a", t.Spec.Target, "dbulk-dump", name).Output()
+	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "-a", t.atom.Spec.Target, "dbulk-dump", name).Output()
 	t.l.Trace("exec error", "error", err)
 	var exitError *exec.ExitError
 	if err != nil && errors.As(err, &exitError) {
 		stderr := string(exitError.Stderr)
 		t.AuxMutex.Lock()
-		t.Bad[name] = stderr
+		t.atom.Bad[name] = stderr
 		t.AuxMutex.Unlock()
 		return nil, err
 	} else if err != nil {
@@ -232,7 +234,7 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 
 	t.l.Trace("Loaded Package", "data", p)
 	t.PkgsMutex.Lock()
-	t.Pkgs[name] = &p
+	t.atom.Pkgs[name] = &p
 	t.PkgsMutex.Unlock()
 	return &p, nil
 }
