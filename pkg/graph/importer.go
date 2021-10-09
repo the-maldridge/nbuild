@@ -197,7 +197,15 @@ func (t *PkgGraph) CleanPkg(pkg string) {
 
 func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 	p := types.Package{}
-	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "-a", t.atom.Spec.Target, "dbulk-dump", name).Output()
+	var opts []string
+	if t.atom.Spec.Host != t.atom.Spec.Target {
+		// ONLY then should we use -a
+		opts = []string{"-a", t.atom.Spec.Target}
+	} else {
+		opts = []string{}
+	}
+	opts = append(opts, "dbulk-dump", name)
+	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), opts...).Output()
 	t.l.Trace("exec error", "error", err)
 	var exitError *exec.ExitError
 	if err != nil && errors.As(err, &exitError) {
