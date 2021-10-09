@@ -31,9 +31,11 @@ func main() {
 		}
 	case "repodata":
 		rss := repo.NewIndexService(appLogger)
-		appLogger.Info("repodata load", "error", rss.LoadIndex("http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata"))
-		appLogger.Info("repodata contains some packages", "count", rss.PkgCount())
-		p, _ := rss.GetPackage("NetAuth")
+		appLogger.Info("repodata load", "error", rss.LoadIndex("x86_64", "main", "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata"))
+		appLogger.Info("repodata load", "error", rss.LoadIndex("x86_64", "nonfree", "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata"))
+		p, _ := rss.GetPackage("x86_64", "NetAuth")
+		appLogger.Info("Example package", "pkg", p)
+		p, _ = rss.GetPackage("x86_64", "scream-raw-ivshmem")
 		appLogger.Info("Example package", "pkg", p)
 	case "git":
 		repo := source.New(appLogger)
@@ -43,7 +45,17 @@ func main() {
 		// Some random commit
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	case "multigraph":
-		mgr := graph.NewManager(appLogger, []graph.SpecTuple{{"x86_64", "x86_64"}, {"x86_64", "armv7l"}})
+		mgr := graph.NewManager(appLogger, []graph.SpecTuple{{"x86_64", "x86_64"}}) //, {"x86_64", "armv7l"}})
+		mgr.SetIndexURLs(map[string]map[string]string{
+			"x86_64": {
+				"main": "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
+				"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata",
+			},
+			"armv7l": {
+				"main": "http://mirrors.servercentral.com/voidlinux/current/armv7l-repodata",
+				"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/armv7l-repodata",
+			},
+		})
 
 		storage.SetLogger(appLogger)
 		storage.DoCallbacks()
@@ -54,7 +66,15 @@ func main() {
 		}
 		mgr.EnablePersistence(store)
 		appLogger.Info("Bootstrapping multigraph", "return", mgr.Bootstrap())
-		mgr.SyncTo("0ee5b487dca9d6a2476beeb93e9a75d2b5751953")
+		mgr.UpdateCheckout()
+		mgr.SyncTo("e7ca6798247fb7a2d6373dbc48697041df4ebd67")
+		mgr.Clean()
+		spec := graph.SpecTuple{"x86_64","x86_64"}
+		dirty := mgr.GetDirty(spec)
+		for _, p := range dirty {
+			appLogger.Info("Dirty Package", "spec", spec, "package", p)
+		}
+		appLogger.Info("Total Dirty Packages", "count", len(dirty))
 		store.Close()
 	}
 }

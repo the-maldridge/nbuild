@@ -2,9 +2,11 @@ package graph
 
 import (
 	"sync"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/storage"
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
@@ -51,6 +53,7 @@ type Manager struct {
 	cm       CheckoutManager
 	graphs   map[string]*PkgGraph
 	specs    []SpecTuple
+	idx      *repo.IndexService
 	basepath string
 	rev      string
 
@@ -61,6 +64,13 @@ type Manager struct {
 type SpecTuple struct {
 	Host   string
 	Target string
+}
+
+// SpecTupleFromString returns a spec tuple from its string
+// representation.
+func SpecTupleFromString(s string) SpecTuple {
+	p := strings.SplitN(s, ":", 2)
+	return SpecTuple{p[0], p[1]}
 }
 
 // CheckoutManager handles a git checkout

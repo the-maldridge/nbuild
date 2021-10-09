@@ -167,6 +167,34 @@ func (t *PkgGraph) ResolvePackage(name string) (*types.Package, error) {
 	return t.ResolvePackage(n)
 }
 
+// GetDirty returns a list of packages that have the dirty flag set.
+func (t *PkgGraph) GetDirty() []*types.Package {
+	out := []*types.Package{}
+
+	t.PkgsMutex.Lock()
+	for _, pkg := range t.atom.Pkgs {
+		if pkg.Dirty {
+			out = append(out, pkg)
+		}
+	}
+	t.PkgsMutex.Unlock()
+	t.l.Debug("There are dirty packages", "count", len(out))
+	return out
+}
+
+// CleanPkg clears the dirty bit on a named package.
+func (t *PkgGraph) CleanPkg(pkg string) {
+	t.PkgsMutex.Lock()
+	defer t.PkgsMutex.Unlock()
+	p, ok := t.atom.Pkgs[pkg]
+	if !ok {
+		t.l.Warn("Attempted clean on non-existant package!", "package", pkg)
+		return
+	}
+	p.Dirty = false
+	t.l.Trace("Cleaned package", "package", pkg)
+}
+
 func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 	p := types.Package{}
 	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), "-a", t.atom.Spec.Target, "dbulk-dump", name).Output()
@@ -212,24 +240,24 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 
 	p.Name = strings.TrimSpace(tokens["pkgname"])
 	p.Dirty = true
-	p.Version = tokens["version"] + "_" + tokens["revision"]
+	p.Version = strings.TrimSpace(tokens["version"]) + "_" + strings.TrimSpace(tokens["revision"])
 
 	hmd := strings.Fields(tokens["hostmakedepends"])
 	p.HostDepends = make(map[string]struct{}, len(hmd))
 	for _, h := range hmd {
-		p.HostDepends[h] = struct{}{}
+		p.HostDepends[strings.TrimSpace(h)] = struct{}{}
 	}
 
 	md := strings.Fields(tokens["makedepends"])
 	p.MakeDepends = make(map[string]struct{}, len(md))
 	for _, m := range md {
-		p.MakeDepends[m] = struct{}{}
+		p.MakeDepends[strings.TrimSpace(m)] = struct{}{}
 	}
 
 	d := strings.Fields(tokens["depends"])
 	p.Depends = make(map[string]struct{}, len(d))
 	for _, rd := range d {
-		p.Depends[rd] = struct{}{}
+		p.Depends[strings.TrimSpace(rd)] = struct{}{}
 	}
 
 	t.l.Trace("Loaded Package", "data", p)

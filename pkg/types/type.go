@@ -11,3 +11,7 @@ type Package struct {
 	MakeDepends map[string]struct{}
 	Depends     map[string]struct{}
 }
+
+func (p Package) String() string {
+	return p.Name + "-" + p.Version
+}

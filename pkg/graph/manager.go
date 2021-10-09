@@ -9,6 +9,8 @@ import (
 
 	"github.com/the-maldridge/nbuild/pkg/source"
 	"github.com/the-maldridge/nbuild/pkg/storage"
+	"github.com/the-maldridge/nbuild/pkg/repo"
+	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
 // NewManager creates a collection of graphs under a single manager
@@ -24,7 +26,20 @@ func NewManager(l hclog.Logger, specs []SpecTuple) *Manager {
 	for _, spec := range specs {
 		x.graphs[spec.String()] = New(l.Named("graph"), spec)
 	}
+
+	x.idx = repo.NewIndexService(x.l)
 	return &x
+}
+
+// SetIndexURLs feeds in the paths to the URLs for each index related
+// to the archs that are being built by each spec.  The keys in this
+// map should be the targets from the SpecTuples.
+func (m *Manager) SetIndexURLs(urls map[string]map[string]string) {
+	for arch, indexes := range urls {
+		for repo, index := range indexes {
+			m.idx.LoadIndex(arch, repo, index)
+		}
+	}
 }
 
 // EnablePersistence provides a way to allow the graph manager to
@@ -79,6 +94,11 @@ func (m *Manager) Bootstrap() error {
 	return nil
 }
 
+// UpdateCheckout fetches new references from git
+func (m *Manager) UpdateCheckout() error {
+	return m.cm.Fetch()
+}
+
 // SyncTo causes the graphs to all sync to a specific point in
 // history.
 func (m *Manager) SyncTo(hash string) error {
@@ -104,6 +124,41 @@ func (m *Manager) SyncTo(hash string) error {
 	m.persistGraphs()
 	m.l.Info("Synced", "changed", changed)
 	return nil
+}
+
+// Clean attempts to reconcile the graph with the repo index service
+// to determine what packages are present vs what is missing.
+func (m *Manager) Clean() {
+	for spec, graph := range m.graphs {
+		m.l.Debug("Attempting to clean graph", "spec", spec)
+		for _, pkg := range graph.GetDirty() {
+			p, err := m.idx.GetPackage(SpecTupleFromString(spec).Target, pkg.Name)
+			if err != nil {
+				m.l.Debug("Package errors while cleaning", "spec", spec, "package", pkg, "error", err)
+				continue
+			}
+			// This looks so dumb, but is because the
+			// version field in the index includes the
+			// package name.
+			if p.Version == pkg.Name + "-" + pkg.Version {
+				m.l.Trace("Cleaning Package", "spec", spec, "package", pkg.Name, "version", pkg.Version)
+				graph.CleanPkg(pkg.Name)
+			} else {
+				m.l.Trace("Package remains dirty", "package", pkg.Name, "have", p.Version, "want", pkg)
+			}
+		}
+		m.l.Debug("Remaining dirty packages", "count", len(m.GetDirty(SpecTupleFromString(spec))))
+	}
+	m.persistGraphs()
+}
+
+// GetDirty returns a list of packages that are dirty in the graph.
+func (m *Manager) GetDirty(spec SpecTuple) []*types.Package {
+	graph, ok := m.graphs[spec.String()]
+	if !ok {
+		return nil
+	}
+	return graph.GetDirty()
 }
 
 func (m *Manager) loadGraphs() {
