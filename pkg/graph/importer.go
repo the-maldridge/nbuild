@@ -182,6 +182,11 @@ func (t *PkgGraph) GetDirty() []*types.Package {
 	return out
 }
 
+// GetAtom returns the current state of the atom.
+func (t *PkgGraph) GetAtom() types.Atom {
+	return t.atom
+}
+
 // CleanPkg clears the dirty bit on a named package.
 func (t *PkgGraph) CleanPkg(pkg string) {
 	t.PkgsMutex.Lock()

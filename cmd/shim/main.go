@@ -76,6 +76,10 @@ func main() {
 			appLogger.Info("Dirty Package", "spec", spec, "package", p)
 		}
 		appLogger.Info("Total Dirty Packages", "count", len(dirty))
+		dispatchable := mgr.GetDispatchable()
+		for spec, p := range dispatchable {
+			appLogger.Info("Dispatchable Package", "spec", spec, "package", p)
+		}
 		store.Close()
 	}
 }
