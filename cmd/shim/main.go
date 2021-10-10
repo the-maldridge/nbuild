@@ -10,6 +10,7 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/source"
 	"github.com/the-maldridge/nbuild/pkg/storage"
 	_ "github.com/the-maldridge/nbuild/pkg/storage/bc"
+	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "import":
-		srctree := graph.New(appLogger, graph.SpecTuple{"x86_64", "x86_64"})
+		srctree := graph.New(appLogger, types.SpecTuple{"x86_64", "x86_64"})
 		if err := srctree.LoadVirtual(); err != nil {
 			return
 		}
@@ -45,7 +46,7 @@ func main() {
 		// Some random commit
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	case "multigraph":
-		mgr := graph.NewManager(appLogger, []graph.SpecTuple{{"x86_64", "x86_64"}}) //, {"x86_64", "armv7l"}})
+		mgr := graph.NewManager(appLogger, []types.SpecTuple{{"x86_64", "x86_64"}}) //, {"x86_64", "armv7l"}})
 		mgr.SetIndexURLs(map[string]map[string]string{
 			"x86_64": {
 				"main": "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
@@ -69,7 +70,7 @@ func main() {
 		mgr.UpdateCheckout()
 		mgr.SyncTo("e7ca6798247fb7a2d6373dbc48697041df4ebd67")
 		mgr.Clean()
-		spec := graph.SpecTuple{"x86_64","x86_64"}
+		spec := types.SpecTuple{"x86_64","x86_64"}
 		dirty := mgr.GetDirty(spec)
 		for _, p := range dirty {
 			appLogger.Info("Dirty Package", "spec", spec, "package", p)

@@ -15,7 +15,7 @@ import (
 
 // NewManager creates a collection of graphs under a single manager
 // and returns the manager.  Graphs do not have state on return.
-func NewManager(l hclog.Logger, specs []SpecTuple) *Manager {
+func NewManager(l hclog.Logger, specs []types.SpecTuple) *Manager {
 	x := Manager{
 		l:        l.Named("graph"),
 		cm:       source.New(l),
@@ -132,7 +132,7 @@ func (m *Manager) Clean() {
 	for spec, graph := range m.graphs {
 		m.l.Debug("Attempting to clean graph", "spec", spec)
 		for _, pkg := range graph.GetDirty() {
-			p, err := m.idx.GetPackage(SpecTupleFromString(spec).Target, pkg.Name)
+			p, err := m.idx.GetPackage(types.SpecTupleFromString(spec).Target, pkg.Name)
 			if err != nil {
 				m.l.Debug("Package errors while cleaning", "spec", spec, "package", pkg, "error", err)
 				continue
@@ -147,13 +147,13 @@ func (m *Manager) Clean() {
 				m.l.Trace("Package remains dirty", "package", pkg.Name, "have", p.Version, "want", pkg)
 			}
 		}
-		m.l.Debug("Remaining dirty packages", "count", len(m.GetDirty(SpecTupleFromString(spec))))
+		m.l.Debug("Remaining dirty packages", "count", len(m.GetDirty(types.SpecTupleFromString(spec))))
 	}
 	m.persistGraphs()
 }
 
 // GetDirty returns a list of packages that are dirty in the graph.
-func (m *Manager) GetDirty(spec SpecTuple) []*types.Package {
+func (m *Manager) GetDirty(spec types.SpecTuple) []*types.Package {
 	graph, ok := m.graphs[spec.String()]
 	if !ok {
 		return nil
@@ -171,8 +171,8 @@ func (m *Manager) loadGraphs() {
 		m.l.Debug("Attempting to load graph", "spec", spec)
 		graph.PkgsMutex.Lock()
 		graph.AuxMutex.Lock()
-		defer graph.PkgsMutex.Unlock()
 		defer graph.AuxMutex.Unlock()
+		defer graph.PkgsMutex.Unlock()
 		graphbytes, err := m.storage.Get([]byte(path.Join("graph", spec)))
 		if err != nil {
 			m.l.Warn("Error loading graph", "error", err)
