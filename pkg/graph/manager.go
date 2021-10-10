@@ -171,8 +171,8 @@ func (m *Manager) loadGraphs() {
 		m.l.Debug("Attempting to load graph", "spec", spec)
 		graph.PkgsMutex.Lock()
 		graph.AuxMutex.Lock()
-		defer graph.AuxMutex.Unlock()
 		defer graph.PkgsMutex.Unlock()
+		defer graph.AuxMutex.Unlock()
 		graphbytes, err := m.storage.Get([]byte(path.Join("graph", spec)))
 		if err != nil {
 			m.l.Warn("Error loading graph", "error", err)
@@ -182,6 +182,9 @@ func (m *Manager) loadGraphs() {
 			m.l.Warn("Error loading graph", "error", err)
 			continue
 		}
+		graph.PkgsMutex.Unlock()
+		defer graph.PkgsMutex.Lock() // Avoid unlocking unlocked mutex
+		graph.SetupAllSubpackages()
 		m.l.Debug("Loaded Graph", "spec", spec, "count", len(graph.atom.Pkgs), "rev", graph.atom.Rev)
 	}
 }

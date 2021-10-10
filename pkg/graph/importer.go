@@ -195,6 +195,23 @@ func (t *PkgGraph) CleanPkg(pkg string) {
 	t.l.Trace("Cleaned package", "package", pkg)
 }
 
+// SetupAllSubpackages is SetupSubpackages looped over all packages.
+func (t *PkgGraph) SetupAllSubpackages() {
+	for _, p := range t.atom.Pkgs {
+		t.SetupSubpackages(p)
+	}
+}
+
+// SetupSubpackages sets up pointers from a subpackage to the base package.
+func (t *PkgGraph) SetupSubpackages(p *types.Package) {
+	t.PkgsMutex.Lock()
+	defer t.PkgsMutex.Unlock()
+	for subp, _ := range p.Subpackages {
+		t.l.Trace("Loading Subpackage", "pkg", subp, "basepkg", p.Name)
+		t.atom.Pkgs[subp] = p
+	}
+}
+
 func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 	p := types.Package{}
 	var opts []string
@@ -268,10 +285,18 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 		p.Depends[strings.TrimSpace(rd)] = struct{}{}
 	}
 
+	subp := strings.Fields(tokens["subpackages"])
+	p.Subpackages = make(map[string]struct{}, len(d))
+	for _, sp := range subp {
+		p.Subpackages[strings.TrimSpace(sp)] = struct{}{}
+	}
+
 	t.l.Trace("Loaded Package", "data", p)
 	t.PkgsMutex.Lock()
 	t.atom.Pkgs[name] = &p
 	t.PkgsMutex.Unlock()
+	t.SetupSubpackages(&p)
+
 	return &p, nil
 }
 
