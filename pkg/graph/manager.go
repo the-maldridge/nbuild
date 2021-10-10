@@ -7,9 +7,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/the-maldridge/nbuild/pkg/dispatchable"
+	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/source"
 	"github.com/the-maldridge/nbuild/pkg/storage"
-	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
@@ -140,7 +141,7 @@ func (m *Manager) Clean() {
 			// This looks so dumb, but is because the
 			// version field in the index includes the
 			// package name.
-			if p.Version == pkg.Name + "-" + pkg.Version {
+			if p.Version == pkg.Name+"-"+pkg.Version {
 				m.l.Trace("Cleaning Package", "spec", spec, "package", pkg.Name, "version", pkg.Version)
 				graph.CleanPkg(pkg.Name)
 			} else {
@@ -159,6 +160,18 @@ func (m *Manager) GetDirty(spec types.SpecTuple) []*types.Package {
 		return nil
 	}
 	return graph.GetDirty()
+}
+
+// GetDispatchable returns a list of packages dispatchable right now.
+func (m *Manager) GetDispatchable() map[types.SpecTuple][]*types.Package {
+	atoms := make([]types.Atom, 0)
+	for _, graph := range m.graphs {
+		graph.PkgsMutex.Lock()
+		defer graph.PkgsMutex.Unlock()
+		atoms = append(atoms, graph.GetAtom())
+	}
+	finder := dispatchable.NewDispatchFinder(m.l, atoms)
+	return finder.ImmediatelyDispatchable()
 }
 
 func (m *Manager) loadGraphs() {

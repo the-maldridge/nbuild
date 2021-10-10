@@ -46,7 +46,7 @@ func main() {
 		// Some random commit
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	case "multigraph":
-		mgr := graph.NewManager(appLogger, []types.SpecTuple{{"x86_64", "x86_64"}}) //, {"x86_64", "armv7l"}})
+		mgr := graph.NewManager(appLogger, []types.SpecTuple{{"x86_64", "x86_64"}}}) //, {"x86_64", "armv7l"}})
 		mgr.SetIndexURLs(map[string]map[string]string{
 			"x86_64": {
 				"main": "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
@@ -76,6 +76,10 @@ func main() {
 			appLogger.Info("Dirty Package", "spec", spec, "package", p)
 		}
 		appLogger.Info("Total Dirty Packages", "count", len(dirty))
+		dispatchable := mgr.GetDispatchable()
+		for spec, p := range dispatchable {
+			appLogger.Info("Dispatchable Package", "spec", spec, "package", p)
+		}
 		store.Close()
 	}
 }
