@@ -2,7 +2,6 @@ package graph
 
 import (
 	"sync"
-	"strings"
 
 	"github.com/hashicorp/go-hclog"
 
@@ -24,26 +23,7 @@ type PkgGraph struct {
 	basePath    string
 	parallelism int
 
-	atom Atom
-}
-
-// Atom is a storage struct that contains all the serializable data
-// for a single arch graph.
-type Atom struct {
-	Pkgs    map[string]*types.Package
-	Virtual map[string]string
-
-	// bad returned some errors, so we keep an eye on what the
-	// error was and continue.
-	Bad map[string]string
-
-	// These keep track of what the archs this graph is rendered
-	// from are.
-	Spec SpecTuple
-
-	// Rev stores the git revision of the PkgGraph for later so
-	// that we can tell if the graph needs to be reloaded.
-	Rev string
+	atom types.Atom
 }
 
 // Manager is a collection of graphs that all interact with the same
@@ -52,25 +32,12 @@ type Manager struct {
 	l        hclog.Logger
 	cm       CheckoutManager
 	graphs   map[string]*PkgGraph
-	specs    []SpecTuple
+	specs    []types.SpecTuple
 	idx      *repo.IndexService
 	basepath string
 	rev      string
 
 	storage storage.Storage
-}
-
-// A SpecTuple is a listing of the host and target arch.
-type SpecTuple struct {
-	Host   string
-	Target string
-}
-
-// SpecTupleFromString returns a spec tuple from its string
-// representation.
-func SpecTupleFromString(s string) SpecTuple {
-	p := strings.SplitN(s, ":", 2)
-	return SpecTuple{p[0], p[1]}
 }
 
 // CheckoutManager handles a git checkout

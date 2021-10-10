@@ -16,14 +16,14 @@ import (
 )
 
 // New returns a new blank tree with the logger configured
-func New(l hclog.Logger, spec SpecTuple) *PkgGraph {
+func New(l hclog.Logger, spec types.SpecTuple) *PkgGraph {
 	x := PkgGraph{
 		l:           l.Named(spec.String()),
 		basePath:    "void-packages",
 		parallelism: 10,
 		PkgsMutex:   new(sync.Mutex),
 		AuxMutex:    new(sync.Mutex),
-		atom: Atom{
+		atom: types.Atom{
 			Pkgs:    make(map[string]*types.Package),
 			Virtual: make(map[string]string),
 			Bad:     make(map[string]string),
@@ -202,7 +202,8 @@ func (t *PkgGraph) SetupAllSubpackages() {
 	}
 }
 
-// SetupSubpackages sets up pointers from a subpackage to the base package.
+// SetupSubpackages takes a (normal) package and points all of its subpackages
+// to itself in the atom.
 func (t *PkgGraph) SetupSubpackages(p *types.Package) {
 	t.PkgsMutex.Lock()
 	defer t.PkgsMutex.Unlock()
@@ -215,11 +216,9 @@ func (t *PkgGraph) SetupSubpackages(p *types.Package) {
 func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 	p := types.Package{}
 	var opts []string
-	if t.atom.Spec.Host != t.atom.Spec.Target {
+	if !t.atom.Spec.Native() {
 		// ONLY then should we use -a
 		opts = []string{"-a", t.atom.Spec.Target}
-	} else {
-		opts = []string{}
 	}
 	opts = append(opts, "dbulk-dump", name)
 	dump, err := exec.Command(filepath.Join(t.basePath, "xbps-src"), opts...).Output()
