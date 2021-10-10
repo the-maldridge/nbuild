@@ -10,6 +10,7 @@ type Package struct {
 	HostDepends map[string]struct{}
 	MakeDepends map[string]struct{}
 	Depends     map[string]struct{}
+	Subpackages map[string]struct{}
 }
 
 func (p Package) String() string {
