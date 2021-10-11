@@ -1,7 +1,7 @@
 package types
 
 import (
-    "strings"
+	"strings"
 )
 
 // A SpecTuple is a listing of the host and target arch.

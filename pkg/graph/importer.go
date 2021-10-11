@@ -212,7 +212,7 @@ func (t *PkgGraph) SetupAllSubpackages() {
 func (t *PkgGraph) SetupSubpackages(p *types.Package) {
 	t.PkgsMutex.Lock()
 	defer t.PkgsMutex.Unlock()
-	for subp, _ := range p.Subpackages {
+	for subp := range p.Subpackages {
 		t.l.Trace("Loading Subpackage", "pkg", subp, "basepkg", p.Name)
 		t.atom.Pkgs[subp] = p
 	}

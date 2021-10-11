@@ -10,7 +10,7 @@ import (
 
 // DispatchFinder
 type DispatchFinder struct {
-	l hclog.Logger
+	l      hclog.Logger
 	AtomMu *sync.Mutex
 
 	atoms map[types.SpecTuple]types.Atom
