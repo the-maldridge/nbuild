@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	git.mills.io/prologic/bitcask v1.0.0
+	github.com/go-chi/chi/v5 v5.0.4 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/hashicorp/go-hclog v0.15.0
 	github.com/klauspost/compress v1.13.6
