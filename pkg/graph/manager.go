@@ -131,26 +131,31 @@ func (m *Manager) SyncTo(hash string) error {
 // to determine what packages are present vs what is missing.
 func (m *Manager) Clean() {
 	for spec, graph := range m.graphs {
-		m.l.Debug("Attempting to clean graph", "spec", spec)
-		for _, pkg := range graph.GetDirty() {
-			p, err := m.idx.GetPackage(types.SpecTupleFromString(spec).Target, pkg.Name)
-			if err != nil {
-				m.l.Debug("Package errors while cleaning", "spec", spec, "package", pkg, "error", err)
-				continue
-			}
-			// This looks so dumb, but is because the
-			// version field in the index includes the
-			// package name.
-			if p.Version == pkg.Name+"-"+pkg.Version {
-				m.l.Trace("Cleaning Package", "spec", spec, "package", pkg.Name, "version", pkg.Version)
-				graph.CleanPkg(pkg.Name)
-			} else {
-				m.l.Trace("Package remains dirty", "package", pkg.Name, "have", p.Version, "want", pkg)
-			}
-		}
-		m.l.Debug("Remaining dirty packages", "count", len(m.GetDirty(types.SpecTupleFromString(spec))))
+		m.CleanSpec(types.SpecTupleFromString(spec), graph)
 	}
 	m.persistGraphs()
+}
+
+// CleanSpec cleans a single spec graph.
+func (m *Manager) CleanSpec(spec types.SpecTuple, graph *PkgGraph) {
+	m.l.Debug("Attempting to clean graph", "spec", spec)
+	for _, pkg := range graph.GetDirty() {
+		p, err := m.idx.GetPackage(spec.Target, pkg.Name)
+		if err != nil {
+			m.l.Debug("Package errors while cleaning", "spec", spec, "package", pkg, "error", err)
+			continue
+		}
+		// This looks so dumb, but is because the
+		// version field in the index includes the
+		// package name.
+		if p.Version == pkg.Name+"-"+pkg.Version {
+			m.l.Trace("Cleaning Package", "spec", spec, "package", pkg.Name, "version", pkg.Version)
+			graph.CleanPkg(pkg.Name)
+		} else {
+			m.l.Trace("Package remains dirty", "package", pkg.Name, "have", p.Version, "want", pkg)
+		}
+	}
+	m.l.Debug("Remaining dirty packages", "count", len(m.GetDirty(spec)))
 }
 
 // GetDirty returns a list of packages that are dirty in the graph.

@@ -19,6 +19,9 @@ func (m *Manager) HTTPEntry() chi.Router {
 	r.Get("/dirty/{host}/{target}", m.httpDumpDirty)
 	r.Get("/dispatchable", m.httpDumpDispatch)
 
+	r.Post("/clean/{target}", m.httpCleanTarget)
+	r.Post("/syncto/{sha}", m.httpSyncToRev)
+
 	return r
 }
 
@@ -86,13 +89,26 @@ func (m *Manager) httpDumpDispatch(w http.ResponseWriter, r *http.Request) {
 	// Its necessary to re-shape what we get from the API due to
 	// the limitations of the JSON format.  Specifically the map
 	// keys MUST be strings.
-	dispatchable := make(map[string][]*types.Package)
+	dispatchable := make(map[string][]string)
 	for spec, list := range m.GetDispatchable() {
-		dispatchable[spec.String()] = list
+		dispatch := make(map[string]struct{}, len(list))
+		// dedup the list (subpkgs add the parent multiple
+		// times)
+		for _, pkg := range list {
+			dispatch[pkg.Name] = struct{}{}
+		}
+
+		ret := make([]string, len(dispatch))
+		i := 0
+		for key := range dispatch {
+			ret[i] = key
+			i++
+		}
+		dispatchable[spec.String()] = ret
 	}
 
 	out := struct {
-		Pkgs     map[string][]*types.Package
+		Pkgs     map[string][]string
 		Revision string
 	}{
 		Pkgs:     dispatchable,
@@ -102,5 +118,54 @@ func (m *Manager) httpDumpDispatch(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	enc.Encode(out)
+}
+
+func (m *Manager) httpCleanTarget(w http.ResponseWriter, r *http.Request) {
+	tgt := chi.URLParam(r, "target")
+
+	enc := json.NewEncoder(w)
+	if err := m.idx.ReloadArch(tgt); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		out := struct {
+			Error string
+		}{
+			Error: err.Error(),
+		}
+		enc.Encode(out)
+		return
+	}
+
+	for spec, graph := range m.graphs {
+		if types.SpecTupleFromString(spec).Target != tgt {
+			continue
+		}
+		m.CleanSpec(types.SpecTupleFromString(spec), graph)
+	}
+}
+
+func (m *Manager) httpSyncToRev(w http.ResponseWriter, r *http.Request) {
+	if err := m.UpdateCheckout(); err != nil {
+		m.l.Warn("Checkout modified outside of nbuild, this is not supported")
+		return
+	}
+
+	if err := m.SyncTo(chi.URLParam(r, "sha")); err != nil {
+		jsonError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	m.Clean()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func jsonError(w http.ResponseWriter, err error, code int) {
+	enc := json.NewEncoder(w)
+	w.WriteHeader(code)
+	out := struct {
+		Error string
+	}{
+		Error: err.Error(),
+	}
 	enc.Encode(out)
 }

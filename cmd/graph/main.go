@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/the-maldridge/nbuild/pkg/graph"
@@ -36,7 +39,23 @@ func main() {
 	mgr := graph.NewManager(appLogger, specs)
 	mgr.EnablePersistence(store)
 	mgr.Bootstrap()
+	mgr.SetIndexURLs(map[string]map[string]string{
+		"x86_64": {
+			"main":    "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
+			"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata",
+			"local":   "file://test-checkout/hostdir/binpkgs/x86_64-repodata",
+		},
+	})
 
 	srv.Mount("/api/graph", mgr.HTTPEntry())
-	srv.Serve(":8080")
+	go srv.Serve(":8080")
+
+	stop := make(chan os.Signal, 2)
+	signal.Notify(stop, os.Interrupt)
+
+	<-stop
+
+	appLogger.Info("Shutting down")
+	store.Close()
+	appLogger.Info("Goodbye!")
 }

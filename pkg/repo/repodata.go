@@ -55,6 +55,10 @@ func (is *IndexService) LoadIndex(arch, repo, path string) error {
 		idx = is.indicies[arch]
 	}
 
+	if _, ok := idx.Repodatas[repo]; !ok {
+		idx.Repodatas[repo] = path
+	}
+
 	return idx.Load(repo, path)
 }
 
@@ -92,6 +96,7 @@ func (i *Index) Load(repo, path string) error {
 		i.l.Error("Repodata scheme must be either file or http(s)")
 	}
 	if err != nil {
+		i.l.Warn("Error loading arch", "error", err)
 		return err
 	}
 

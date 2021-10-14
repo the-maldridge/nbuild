@@ -1,0 +1,9 @@
+#!/bin/sh
+
+while true ; do
+    curl -o /tmp/dispatchable http://localhost:8080/api/graph/dispatchable
+    git fetch
+    git reset --hard "$(jq -r .Revision /tmp/dispatchable)" --
+    ./xbps-src -1 pkg "$(jq -r '.Pkgs["x86_64:x86_64"][0]' /tmp/dispatchable)"
+    curl -X POST  http://localhost:8080/api/graph/clean/x86_64
+done
