@@ -19,6 +19,8 @@ func (m *Manager) HTTPEntry() chi.Router {
 	r.Get("/dirty/{host}/{target}", m.httpDumpDirty)
 	r.Get("/dispatchable", m.httpDumpDispatch)
 
+	r.Post("/pkgs/{host}/{target}/{pkg}/fail", m.httpFailPkg)
+	r.Post("/pkgs/{host}/{target}/{pkg}/unfail", m.httpUnfailPkg)
 	r.Post("/clean/{target}", m.httpCleanTarget)
 	r.Post("/syncto/{sha}", m.httpSyncToRev)
 
@@ -119,6 +121,36 @@ func (m *Manager) httpDumpDispatch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	enc.Encode(out)
+}
+
+func (m *Manager) httpFailPkg(w http.ResponseWriter, r *http.Request) {
+	graph, ok := m.graphs[types.SpecTuple{chi.URLParam(r, "host"), chi.URLParam(r, "target")}.String()]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if err := graph.FailPkg(chi.URLParam(r, "pkg")); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (m *Manager) httpUnfailPkg(w http.ResponseWriter, r *http.Request) {
+	graph, ok := m.graphs[types.SpecTuple{chi.URLParam(r, "host"), chi.URLParam(r, "target")}.String()]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if err := graph.UnfailPkg(chi.URLParam(r, "pkg")); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (m *Manager) httpCleanTarget(w http.ResponseWriter, r *http.Request) {

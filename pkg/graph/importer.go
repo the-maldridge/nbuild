@@ -173,7 +173,7 @@ func (t *PkgGraph) GetDirty() []*types.Package {
 
 	t.PkgsMutex.Lock()
 	for _, pkg := range t.atom.Pkgs {
-		if pkg.Dirty {
+		if pkg.Dirty && !pkg.Failed {
 			out = append(out, pkg)
 		}
 	}
@@ -198,6 +198,34 @@ func (t *PkgGraph) CleanPkg(pkg string) {
 	}
 	p.Dirty = false
 	t.l.Trace("Cleaned package", "package", pkg)
+}
+
+// FailPkg sets the failed bit on a named package.
+func (t *PkgGraph) FailPkg(pkg string) error {
+	t.PkgsMutex.Lock()
+	defer t.PkgsMutex.Unlock()
+	p, ok := t.atom.Pkgs[pkg]
+	if !ok {
+		t.l.Warn("Attempted setting fail on non-existant package!", "package", pkg)
+		return errors.New("pkg not found")
+	}
+	p.Failed = true
+	t.l.Trace("Failed package", "package", pkg)
+	return nil
+}
+
+// UnfailPkg clears the failed bit on a named package.
+func (t *PkgGraph) UnfailPkg(pkg string) error {
+	t.PkgsMutex.Lock()
+	defer t.PkgsMutex.Unlock()
+	p, ok := t.atom.Pkgs[pkg]
+	if !ok {
+		t.l.Warn("Attempted clearing fail on non-existant package!", "package", pkg)
+		return errors.New("pkg not found")
+	}
+	p.Failed = false
+	t.l.Trace("Unfailed package", "package", pkg)
+	return nil
 }
 
 // SetupAllSubpackages is SetupSubpackages looped over all packages.
@@ -269,6 +297,7 @@ func (t *PkgGraph) loadFromDisk(name string) (*types.Package, error) {
 
 	p.Name = strings.TrimSpace(tokens["pkgname"])
 	p.Dirty = true
+	p.Failed = false
 	p.Version = strings.TrimSpace(tokens["version"]) + "_" + strings.TrimSpace(tokens["revision"])
 
 	hmd := strings.Fields(tokens["hostmakedepends"])
