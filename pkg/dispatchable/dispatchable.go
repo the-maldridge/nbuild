@@ -30,7 +30,7 @@ func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) 
 			d.l.Warn("Host dependency cannot be found in atom", "hdep", hdep, "pkg", p)
 			return false
 		}
-		if hAtom.Pkgs[hdep].Dirty {
+		if hAtom.Pkgs[hdep].Dirty || hAtom.Pkgs[hdep].Failed {
 			return false
 		}
 	}
@@ -41,7 +41,7 @@ func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) 
 			d.l.Warn("Dependency cannot be found in atom", "dep", dep, "pkg", p)
 			return false
 		}
-		if tAtom.Pkgs[dep].Dirty {
+		if tAtom.Pkgs[dep].Dirty || tAtom.Pkgs[dep].Failed {
 			return false
 		}
 	}
@@ -50,7 +50,7 @@ func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) 
 			d.l.Warn("Dependency cannot be found in atom", "dep", dep, "pkg", p)
 			return false
 		}
-		if tAtom.Pkgs[dep].Dirty {
+		if tAtom.Pkgs[dep].Dirty || tAtom.Pkgs[dep].Failed {
 			return false
 		}
 	}
@@ -74,7 +74,7 @@ func (d *DispatchFinder) ImmediatelyDispatchable() map[types.SpecTuple][]*types.
 		}
 		dispatchable[spec] = make([]*types.Package, 0)
 		for _, pkg := range atom.Pkgs {
-			if pkg.Dirty && d.IsDispatchable(spec, pkg) {
+			if !pkg.Failed && pkg.Dirty && d.IsDispatchable(spec, pkg) {
 				dispatchable[spec] = append(dispatchable[spec], pkg)
 			}
 		}
