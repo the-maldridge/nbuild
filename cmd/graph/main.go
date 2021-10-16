@@ -1,20 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/the-maldridge/nbuild/pkg/config"
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/http"
 	"github.com/the-maldridge/nbuild/pkg/storage"
-	"github.com/the-maldridge/nbuild/pkg/types"
 
 	_ "github.com/the-maldridge/nbuild/pkg/storage/bc"
 )
 
 func main() {
+	cfg := config.NewConfig()
+
+	if path, ok := os.LookupEnv("NBUILD_CONFIG"); ok {
+		if err := cfg.LoadFromFile(path); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading configuration data: %s", err)
+			os.Exit(2)
+		}
+	}
+
 	appLogger := hclog.New(&hclog.LoggerOptions{
 		Name:  "nbuild",
 		Level: hclog.LevelFromString("DEBUG"),
@@ -35,17 +45,10 @@ func main() {
 		return
 	}
 
-	specs := []types.SpecTuple{{"x86_64", "x86_64"}}
-	mgr := graph.NewManager(appLogger, specs)
+	mgr := graph.NewManager(appLogger, cfg.Specs)
 	mgr.EnablePersistence(store)
 	mgr.Bootstrap()
-	mgr.SetIndexURLs(map[string]map[string]string{
-		"x86_64": {
-			"main":    "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
-			"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata",
-			"local":   "file://test-checkout/hostdir/binpkgs/x86_64-repodata",
-		},
-	})
+	mgr.SetIndexURLs(cfg.RepoDataURLs)
 
 	srv.Mount("/api/graph", mgr.HTTPEntry())
 	go srv.Serve(":8080")

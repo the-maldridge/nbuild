@@ -1,0 +1,24 @@
+{
+    "Specs": [
+        {
+            "Host": "x86_64",
+            "Target": "x86_64"
+        },
+        {
+            "Host": "x86_64",
+            "Target": "armv7l"
+        }
+    ],
+    "RepoDataURLs": {
+        "x86_64:x86_64": {
+            "main":    "http://alpha.de.repo.voidlinux.org/current/x86_64-repodata",
+	    "nonfree": "http://alpha.de.repo.voidlinux.org/current/nonfree/x86_64-repodata",
+	    "local":   "file://void-packages/hostdir/binpkgs/x86_64-repodata"
+        },
+        "x86_64:armv7l": {
+            "main":    "http://alpha.de.repo.voidlinux.org/current/armv7l-repodata",
+	    "nonfree": "http://alpha.de.repo.voidlinux.org/current/nonfree/armv7l-repodata",
+	    "local":   "file://void-packages/hostdir/binpkgs/armv7l-repodata"
+        }
+    }
+}
