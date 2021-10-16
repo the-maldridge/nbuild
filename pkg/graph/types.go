@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -38,6 +39,13 @@ type Manager struct {
 	rev      string
 
 	storage storage.Storage
+}
+
+// APIClient embodies the client to the HTTP API
+type APIClient struct {
+	l       hclog.Logger
+	hClient *http.Client
+	Url     string
 }
 
 // CheckoutManager handles a git checkout
