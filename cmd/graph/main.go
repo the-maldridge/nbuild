@@ -10,6 +10,8 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/config"
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/http"
+	"github.com/the-maldridge/nbuild/pkg/scheduler"
+	"github.com/the-maldridge/nbuild/pkg/scheduler/local"
 	"github.com/the-maldridge/nbuild/pkg/storage"
 
 	_ "github.com/the-maldridge/nbuild/pkg/storage/bc"
@@ -50,6 +52,11 @@ func main() {
 	mgr.Bootstrap()
 	mgr.SetIndexURLs(cfg.RepoDataURLs)
 
+	capacityProvider := local.NewLocalCapacityProvider(appLogger, "build-packages")
+	scheduler := scheduler.NewScheduler(appLogger, capacityProvider, "localhost:8080")
+	go scheduler.Run()
+
+	srv.Mount("/api/scheduler", scheduler.HTTPEntry())
 	srv.Mount("/api/graph", mgr.HTTPEntry())
 	go srv.Serve(":8080")
 
