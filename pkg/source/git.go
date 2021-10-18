@@ -32,10 +32,10 @@ func (r *RepoMngr) Bootstrap() error {
 	}
 	r.Mu.Lock()
 	defer r.Mu.Unlock()
-	r.l.Debug("Opening repository", "path", r.Path)
+	r.l.Info("Opening repository", "path", r.Path)
 	r.repo, err = git.PlainOpen(r.Path)
 	if err != nil {
-		r.l.Trace("Error opening repository", "path", r.Path)
+		r.l.Warn("Error opening repository", "path", r.Path)
 		return err
 	}
 	return nil
@@ -63,15 +63,15 @@ func (r *RepoMngr) Checkout(commit string) ([]string, error) {
 	// Find the old commit
 	oldHead, err := r.repo.Head()
 	if err != nil {
-		r.l.Trace("Error getting old HEAD")
+		r.l.Warn("Error getting old HEAD", "err", err, "path", r.Path)
 		return nil, err
 	}
 	oldCommit, err := r.repo.CommitObject(oldHead.Hash())
 	if err != nil {
-		r.l.Trace("Error getting old CommitObject")
+		r.l.Warn("Error getting old CommitObject", "err", err, "path", r.Path)
 		return nil, err
 	}
-	r.l.Debug("Attempting to checkout in git repository", "path", r.Path,
+	r.l.Info("Attempting to checkout in git repository", "path", r.Path,
 		"old", oldHead.Hash().String(), "new", commit)
 
 	// Check we are not doing nothing
@@ -83,7 +83,7 @@ func (r *RepoMngr) Checkout(commit string) ([]string, error) {
 	// Checkout the new commit
 	worktree, err := r.repo.Worktree()
 	if err != nil {
-		r.l.Trace("Error getting worktree")
+		r.l.Warn("Error getting worktree", "err", err, "path", r.Path)
 		return nil, err
 	}
 	newHash := gitPlumbing.NewHash(commit)
@@ -92,12 +92,12 @@ func (r *RepoMngr) Checkout(commit string) ([]string, error) {
 	// Diff the two commits
 	newCommit, err := r.repo.CommitObject(newHash)
 	if err != nil {
-		r.l.Trace("Error getting new CommitObject")
+		r.l.Warn("Error getting new CommitObject", "err", err, "path", r.Path)
 		return nil, err
 	}
 	diff, err := newCommit.Patch(oldCommit)
 	if err != nil {
-		r.l.Trace("Error getting patch")
+		r.l.Warn("Error getting patch", "err", err, "path", r.Path)
 		return nil, err
 	}
 	diffFileStats := diff.Stats()
