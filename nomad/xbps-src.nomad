@@ -1,6 +1,5 @@
 job "xbps-src" {
-  datacenters = ["VOID"]
-  namespace = "build"
+  datacenters = ["minicluster"]
   type = "batch"
 
   parameterized {
@@ -41,8 +40,13 @@ job "xbps-src" {
       }
 
       config {
-        image = "voidlinux/masterdir-${NOMAD_META_HOST_ARCH}:20200607RC01"
-        command = "/local/entrypoint"
+        image = "ghcr.io/void-linux/xbps-src-masterdir:v20211022RC01-${NOMAD_META_HOST_ARCH}"
+        command = "/usr/bin/sh"
+        args = ["-x", "/local/entrypoint"]
+      }
+
+      resources {
+        memory = 600
       }
 
       env {
@@ -56,7 +60,7 @@ job "xbps-src" {
       template {
         data = file("./chroot.sh")
         destination = "local/entrypoint"
-        perms = "0755"
+        perms = "755"
       }
     }
   }

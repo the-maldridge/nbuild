@@ -1,16 +1,15 @@
 job "void-packages" {
-  type = "batch" // change to sysbatch after 1.2
-  datacenters = ["dc1"]
+  type = "sysbatch"
+  datacenters = ["minicluster"]
 
   group "git" {
-
     network {
       mode = "bridge"
     }
 
     volume "void-packages" {
       type = "host"
-      source = "void_packages"
+      source = "void-packages"
       read_only = false
     }
 
@@ -20,6 +19,10 @@ job "void-packages" {
       config {
         image = "alpine/git:latest"
         args = ["clone", "https://github.com/void-linux/void-packages.git", "."]
+      }
+
+      resources {
+        memory = 600
       }
 
       volume_mount {
