@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -16,9 +17,9 @@ func (s *Scheduler) HTTPEntry() chi.Router {
 }
 
 func (s *Scheduler) httpDone(w http.ResponseWriter, r *http.Request) {
-	ok := s.Reconstruct()
-	if !ok {
+	if err := s.Reconstruct(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error: %s", err)
 		return
 	}
 

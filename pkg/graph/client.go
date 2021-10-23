@@ -3,6 +3,7 @@ package graph
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -23,26 +24,26 @@ func NewAPIClient(l hclog.Logger) *APIClient {
 }
 
 // General function to recieve a response
-func (c *APIClient) do(endpoint string, method string) (string, bool) {
+func (c *APIClient) do(endpoint string, method string) (string, error) {
 	if c.Url == "" {
 		c.l.Warn("Url not set for API", "endpoint", endpoint)
-		return "", false
+		return "", errors.New("url must be set")
 	}
 
 	var resp *http.Response
 	var err error
-	fullUrl := "http://" + c.Url + "/api/graph" + endpoint
+	fullURL := "http://" + c.Url + "/api/graph" + endpoint
 	switch method {
 	case "GET":
-		resp, err = c.hClient.Get(fullUrl)
+		resp, err = c.hClient.Get(fullURL)
 	case "POST":
-		resp, err = c.hClient.Post(fullUrl, "application/json", bytes.NewBuffer([]byte("{}")))
+		resp, err = c.hClient.Post(fullURL, "application/json", bytes.NewBuffer([]byte("{}")))
 	default:
 		c.l.Warn("Unknown method", "method", method, "endpoint", endpoint)
 	}
 	if err != nil {
 		c.l.Warn("Unable to recieve from API", "endpoint", endpoint, "method", method, "err", err)
-		return "", false
+		return "", err
 	}
 	defer resp.Body.Close()
 
@@ -51,31 +52,36 @@ func (c *APIClient) do(endpoint string, method string) (string, bool) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		c.l.Warn("Unable to read response from API", "endpoint", endpoint, "method", method, "err", err)
-		return "", false
+		return "", err
 	}
 
-	return string(body), true
+	return string(body), nil
 }
 
 // Clean target via API
-func (c *APIClient) Clean(target string) bool {
-	jsonText, ok := c.do("/clean/"+target, "POST")
+func (c *APIClient) Clean(target string) error {
+	jsonText, err := c.do("/clean/"+target, "POST")
+	if err != nil {
+		return err
+	}
 	if jsonText != "" {
 		var errText map[string]string
 		json.Unmarshal([]byte(jsonText), &errText)
 		c.l.Warn("Error cleaning", "target", target, "err", errText["Error"])
-		return false
+		return errors.New("error cleaning")
 	}
-	return ok
+	return nil
 }
 
-// Syncto via API
-func (c *APIClient) SyncTo(rev string) bool {
-	_, ok := c.do("/syncto/"+rev, "POST")
-	return ok
+// SyncTo requests a remote graph server to syncronize to the provided
+// git hash.
+func (c *APIClient) SyncTo(rev string) error {
+	_, err := c.do("/syncto/"+rev, "POST")
+	return err
 }
 
-// Struct to store dispatchable
+// Dispatchable represents a list of builds that can be dispatched in
+// parallel right now.
 type Dispatchable struct {
 	Pkgs map[types.SpecTuple][]string
 	Rev  string
@@ -86,17 +92,18 @@ type rawDispatchable struct {
 	Revision string
 }
 
-// Get dispatchable via API
-func (c *APIClient) GetDispatchable() (*Dispatchable, bool) {
-	jsonResult, ok := c.do("/dispatchable", "GET")
-	if !ok {
-		return nil, false
+// GetDispatchable queries a remote graph server to determine what
+// packages can be dispatched.
+func (c *APIClient) GetDispatchable() (*Dispatchable, error) {
+	jsonResult, err := c.do("/dispatchable", "GET")
+	if err != nil  {
+		return nil, err
 	}
 	data := rawDispatchable{}
-	err := json.Unmarshal([]byte(jsonResult), &data)
+	err = json.Unmarshal([]byte(jsonResult), &data)
 	if err != nil {
 		c.l.Warn("Error unmarshalling dispatchable", "err", err)
-		return nil, false
+		return nil, err
 	}
 
 	origPkgs := data.Pkgs
@@ -110,5 +117,5 @@ func (c *APIClient) GetDispatchable() (*Dispatchable, bool) {
 		Pkgs: pkgs,
 		Rev:  data.Revision,
 	}
-	return &result, true
+	return &result, nil
 }

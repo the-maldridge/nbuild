@@ -10,6 +10,10 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/graph"
 )
 
+// NewScheduler returns a scheduler instance using the listed capacity
+// provider.  The capacity provider will run builds at a maximum
+// degree of parallelism that is implementation specific and
+// potentially dynamic.
 func NewScheduler(l hclog.Logger, c CapacityProvider, url string) *Scheduler {
 	x := Scheduler{
 		l:                l.Named("scheduler"),
@@ -39,12 +43,11 @@ func (s *Scheduler) send() error {
 	return nil
 }
 
-// Reconstructs the queue from dispatchable.
-func (s *Scheduler) Reconstruct() bool {
-	dispatchable, ok := s.apiClient.GetDispatchable()
-	if !ok {
-		return false
-	}
+// Reconstruct rebuidls the queue from what is currently known to be
+// running and what is currently dispatchable.
+func (s *Scheduler) Reconstruct() error {
+	dispatchable, err := s.apiClient.GetDispatchable()
+	if err != nil { return err }
 
 	s.queueMutex.Lock()
 	defer s.queueMutex.Unlock()
@@ -52,7 +55,7 @@ func (s *Scheduler) Reconstruct() bool {
 
 	current, err := s.capacityProvider.ListBuilds()
 	if err != nil {
-		return false
+		return err
 	}
 	for tuple, pkgs := range dispatchable.Pkgs {
 		for _, pkg := range pkgs {
@@ -63,7 +66,7 @@ func (s *Scheduler) Reconstruct() bool {
 			}
 			alreadyBuilding := false
 			for _, curBuild := range current {
-				if b.Equal(&curBuild) {
+				if b.Equal(curBuild) {
 					alreadyBuilding = true
 					break
 				}
@@ -75,22 +78,22 @@ func (s *Scheduler) Reconstruct() bool {
 		s.tuples = append(s.tuples, tuple)
 	}
 	s.l.Info("Successfully reconstructed queue")
-	return true
+	return nil
 }
 
 // Update graph and then queue.
-func (s *Scheduler) Update() bool {
-	ok := true
+func (s *Scheduler) Update() error {
 	for _, tuple := range s.tuples {
-		cleanOk := s.apiClient.Clean(tuple.Target)
-		ok = ok && cleanOk
+		if err := s.apiClient.Clean(tuple.Target); err != nil {
+			return err
+		}
 	}
 	s.l.Info("Cleaned all targets in graph")
-	ok = ok && s.Reconstruct()
-	return ok
+	return nil
 }
 
-// Start the scheduler.
+// Run loads up the initial data for the scheduler, and serves
+// forever.
 func (s *Scheduler) Run() {
 	s.Reconstruct() // Get tuples
 	s.Update()      // Now get real dispatchable
