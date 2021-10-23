@@ -26,7 +26,7 @@ func init() {
 // SetLogger injects a logger into this package to allow setting up a
 // logger tree.
 func SetLogger(l hclog.Logger) {
-	log = l
+	log = l.Named("storage")
 }
 
 // RegisterFactory registers a factory to the list of available state stores

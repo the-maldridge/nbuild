@@ -47,7 +47,9 @@ func (s *Scheduler) send() error {
 // running and what is currently dispatchable.
 func (s *Scheduler) Reconstruct() error {
 	dispatchable, err := s.apiClient.GetDispatchable()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	s.queueMutex.Lock()
 	defer s.queueMutex.Unlock()

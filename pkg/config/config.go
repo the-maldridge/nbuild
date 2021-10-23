@@ -1,8 +1,8 @@
 package config
 
 import (
-	"os"
 	"encoding/json"
+	"os"
 
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
@@ -20,6 +20,7 @@ func NewConfig() *Config {
 				"local":   "file://void-packages/hostdir/binpkgs/x86_64-repodata",
 			},
 		},
+		CapacityProvider: "local",
 	}
 }
 

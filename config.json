@@ -20,5 +20,6 @@
 	    "nonfree": "http://alpha.de.repo.voidlinux.org/current/nonfree/armv7l-repodata",
 	    "local":   "file://void-packages/hostdir/binpkgs/armv7l-repodata"
         }
-    }
+    },
+    "CapacityProvider": "local"
 }

@@ -7,6 +7,7 @@ import (
 // Config represents the complete application configuration that
 // nbuild supports.
 type Config struct {
-	Specs []types.SpecTuple
-	RepoDataURLs map[string]map[string]string
+	Specs            []types.SpecTuple
+	RepoDataURLs     map[string]map[string]string
+	CapacityProvider string
 }

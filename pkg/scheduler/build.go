@@ -12,9 +12,9 @@ func (b Build) Equal(c Build) bool {
 // ToMap flattens out a build into a map of key/value pairs.
 func (b Build) ToMap() map[string]string {
 	return map[string]string{
-		"host_arch": b.Spec.Host,
+		"host_arch":   b.Spec.Host,
 		"target_arch": b.Spec.Target,
-		"package": b.Pkg,
-		"revision": b.Rev,
+		"package":     b.Pkg,
+		"revision":    b.Rev,
 	}
 }

@@ -9,12 +9,6 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
-type NoCapacityError struct{}
-
-func (e NoCapacityError) Error() string {
-	return "no capacity"
-}
-
 // A Build is all the information required for a build
 type Build struct {
 	Spec types.SpecTuple

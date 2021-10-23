@@ -6,10 +6,9 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-// LocalCapacityProvider is a capacity provider that builds one build at a time locally.
-type LocalCapacityProvider struct {
+// Local is a capacity provider that builds one build at a time locally.
+type Local struct {
 	l       hclog.Logger
 	ongoing *scheduler.Build
 	path    string
-	slots   int
 }

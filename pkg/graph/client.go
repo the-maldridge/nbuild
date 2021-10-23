@@ -96,7 +96,7 @@ type rawDispatchable struct {
 // packages can be dispatched.
 func (c *APIClient) GetDispatchable() (*Dispatchable, error) {
 	jsonResult, err := c.do("/dispatchable", "GET")
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	data := rawDispatchable{}

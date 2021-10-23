@@ -11,21 +11,40 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/source"
 )
 
-func NewLocalCapacityProvider(l hclog.Logger, path string) *LocalCapacityProvider {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		absPath = path
-	}
-	x := LocalCapacityProvider{
+func init() {
+	scheduler.RegisterInitCallback(cb)
+}
+
+func cb() {
+	scheduler.RegisterCapacityFactory("local", New)
+}
+
+// New returns a local capacity provider that operates on a single
+// directory on the local host.  This provider is not really intended
+// for production use and exists more to make testing the rest of the
+// system easier.
+func New(l hclog.Logger) (scheduler.CapacityProvider, error) {
+	x := Local{
 		l:       l.Named("capacityProvider"),
-		path:    absPath,
+		path:    "local-checkout",
 		ongoing: nil,
 	}
-	return &x
+	x.path, _ = filepath.Abs(x.path)
+	return &x, nil
+}
+
+// SetPath allows overriding the default path to the checkout, which
+// is "local-capcity" in the current working directory.
+func (c *Local) SetPath(p string) {
+	// This can only error out if the underlying call to GetCwd
+	// fails, which typically can only fail if the dir is gone,
+	// and if you're removing directories on a running system then
+	// you're in a seriously unsupported workflow already.
+	c.path, _ = filepath.Abs(p)
 }
 
 // Wrapper function for pkgCmd.Run()
-func (c *LocalCapacityProvider) pkgRun(cmd *exec.Cmd) {
+func (c *Local) pkgRun(cmd *exec.Cmd) {
 	output, err := cmd.CombinedOutput()
 	c.ongoing = nil
 	if err != nil {
@@ -34,10 +53,13 @@ func (c *LocalCapacityProvider) pkgRun(cmd *exec.Cmd) {
 	c.l.Trace("Building package output", "output", string(output))
 }
 
-// Builds a package.
-func (c *LocalCapacityProvider) DispatchBuild(b scheduler.Build) error {
+// DispatchBuild attempts to spin off a build if no build is currently
+// working.  This implicitly causes the capacity provider to have a
+// capacity of 1 since the local git checkout can be at only one
+// revision at a time.
+func (c *Local) DispatchBuild(b scheduler.Build) error {
 	if c.ongoing != nil {
-		return new(scheduler.NoCapacityError)
+		return new(scheduler.ErrNoCapacity)
 	}
 	c.ongoing = &b
 
@@ -76,11 +98,10 @@ func (c *LocalCapacityProvider) DispatchBuild(b scheduler.Build) error {
 	return nil
 }
 
-// Lists the ongoing build, if there is one.
-func (c *LocalCapacityProvider) ListBuilds() ([]scheduler.Build, error) {
+// ListBuilds returns the currently in progress build, if one exists.
+func (c *Local) ListBuilds() ([]scheduler.Build, error) {
 	if c.ongoing == nil {
 		return nil, nil
-	} else {
-		return []scheduler.Build{*c.ongoing}, nil
 	}
+	return []scheduler.Build{*c.ongoing}, nil
 }
