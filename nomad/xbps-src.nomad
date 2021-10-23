@@ -33,6 +33,12 @@ job "xbps-src" {
     task "xbps-src" {
       driver = "docker"
 
+      meta {
+        nbuild_host = "${NOMAD_META_HOST_ARCH}"
+        nbuild_target = "${NOMAD_META_TARGET_ARCH}"
+        nbuild_package = "${NOMAD_META_PACKAGE}"
+      }
+
       volume_mount {
         volume = "void-packages"
         destination = "/void-packages-origin"
@@ -46,7 +52,7 @@ job "xbps-src" {
       }
 
       resources {
-        memory = 600
+        memory = 2000
       }
 
       env {

@@ -21,6 +21,9 @@ func NewConfig() *Config {
 			},
 		},
 		CapacityProvider: "local",
+		BuildSlots: map[string]int{
+			"x86_64:x86_64": 1,
+		},
 	}
 }
 

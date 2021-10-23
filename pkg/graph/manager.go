@@ -91,6 +91,7 @@ func (m *Manager) Bootstrap() error {
 		}(spec, graph)
 	}
 	wg.Wait()
+	m.Clean()
 	m.persistGraphs()
 	return nil
 }

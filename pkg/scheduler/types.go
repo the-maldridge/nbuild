@@ -20,6 +20,7 @@ type Build struct {
 type CapacityProvider interface {
 	DispatchBuild(Build) error
 	ListBuilds() ([]Build, error)
+	SetSlots(map[string]int)
 }
 
 // Scheduler makes builds ready + dispatches them using a CapacityProvider.

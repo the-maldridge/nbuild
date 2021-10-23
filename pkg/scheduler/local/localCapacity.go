@@ -33,6 +33,11 @@ func New(l hclog.Logger) (scheduler.CapacityProvider, error) {
 	return &x, nil
 }
 
+// SetSlots is used to setup the capacity for multi-process builders.
+// This builder has a hard-coded capacity of one and so this does
+// nothing.
+func (c *Local) SetSlots(map[string]int) {}
+
 // SetPath allows overriding the default path to the checkout, which
 // is "local-capcity" in the current working directory.
 func (c *Local) SetPath(p string) {

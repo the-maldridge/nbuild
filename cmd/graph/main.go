@@ -52,6 +52,7 @@ func main() {
 	mgr.EnablePersistence(store)
 	mgr.Bootstrap()
 	mgr.SetIndexURLs(cfg.RepoDataURLs)
+	mgr.Clean()
 
 	scheduler.SetLogger(appLogger)
 	scheduler.DoCallbacks()
@@ -60,6 +61,7 @@ func main() {
 		appLogger.Error("Couldn't initialize capacity provider", "error", err)
 		return
 	}
+	cap.SetSlots(cfg.BuildSlots)
 	scheduler := scheduler.NewScheduler(appLogger, cap, "localhost:8080")
 	go scheduler.Run()
 

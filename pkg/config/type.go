@@ -10,4 +10,5 @@ type Config struct {
 	Specs            []types.SpecTuple
 	RepoDataURLs     map[string]map[string]string
 	CapacityProvider string
+	BuildSlots       map[string]int
 }

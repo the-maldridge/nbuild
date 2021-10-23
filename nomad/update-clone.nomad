@@ -22,7 +22,7 @@ job "void-packages" {
       }
 
       resources {
-        memory = 600
+        memory = 1000
       }
 
       volume_mount {

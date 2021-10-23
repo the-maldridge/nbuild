@@ -1,19 +1,33 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/the-maldridge/nbuild/pkg/config"
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/source"
 	"github.com/the-maldridge/nbuild/pkg/storage"
 	_ "github.com/the-maldridge/nbuild/pkg/storage/bc"
 	"github.com/the-maldridge/nbuild/pkg/types"
+
+	"github.com/the-maldridge/nbuild/pkg/scheduler"
+	_ "github.com/the-maldridge/nbuild/pkg/scheduler/nomad"
 )
 
 func main() {
+	cfg := config.NewConfig()
+
+	if path, ok := os.LookupEnv("NBUILD_CONFIG"); ok {
+		if err := cfg.LoadFromFile(path); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading configuration data: %s", err)
+			os.Exit(2)
+		}
+	}
+
 	appLogger := hclog.New(&hclog.LoggerOptions{
 		Name:  "nbuild",
 		Level: hclog.LevelFromString("DEBUG"),
@@ -81,5 +95,18 @@ func main() {
 			appLogger.Info("Dispatchable Package", "spec", spec, "package", p)
 		}
 		store.Close()
+	case "nomad-list":
+		scheduler.SetLogger(appLogger)
+		scheduler.DoCallbacks()
+		cap, err := scheduler.ConstructCapacityProvider(cfg.CapacityProvider)
+		if err != nil {
+			appLogger.Error("Couldn't initialize capacity provider", "error", err)
+			return
+		}
+		builds, err := cap.ListBuilds()
+		if err != nil {
+			appLogger.Error("Error listing builds", "error", err)
+		}
+		appLogger.Info("Build List", "builds", builds)
 	}
 }
