@@ -11,6 +11,7 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/config"
 	"github.com/the-maldridge/nbuild/pkg/graph"
 	"github.com/the-maldridge/nbuild/pkg/http"
+	"github.com/the-maldridge/nbuild/pkg/reciever"
 	"github.com/the-maldridge/nbuild/pkg/scheduler"
 	_ "github.com/the-maldridge/nbuild/pkg/scheduler/local"
 	_ "github.com/the-maldridge/nbuild/pkg/scheduler/nomad"
@@ -25,6 +26,7 @@ var (
 	components = map[string]servelet{
 		"graph":     doGraph,
 		"scheduler": doScheduler,
+		"reciever":  doReciever,
 	}
 
 	shutdownHandlers []shutdownHandler
@@ -36,7 +38,7 @@ func doGraph(appLogger hclog.Logger, errCh chan error, cfg *config.Config, srv *
 	store, err := storage.Initialize("bitcask")
 	if err != nil {
 		appLogger.Error("Couldn't initialize storage", "error", err)
-		errCh<-err
+		errCh <- err
 		return
 	}
 
@@ -57,19 +59,25 @@ func doScheduler(appLogger hclog.Logger, errCh chan error, cfg *config.Config, s
 	cap, err := scheduler.ConstructCapacityProvider(cfg.CapacityProvider)
 	if err != nil {
 		appLogger.Error("Couldn't initialize capacity provider", "error", err)
-		errCh<-err
+		errCh <- err
 		return
 	}
 	cap.SetSlots(cfg.BuildSlots)
 	scheduler, err := scheduler.NewScheduler(appLogger, cap, "http://localhost:8080/api/graph")
 	if err != nil {
 		appLogger.Error("Error initializing scheduler", "error", err)
-		errCh<-err
+		errCh <- err
 		return
 	}
 	shutdownHandlers = append(shutdownHandlers, scheduler.Stop)
 	srv.Mount("/api/scheduler", scheduler.HTTPEntry())
 	scheduler.Run()
+}
+
+func doReciever(appLogger hclog.Logger, errCh chan error, cfg *config.Config, srv *http.Server) {
+	reciever := reciever.NewReciever(appLogger)
+	reciever.SetPath(cfg.RepoPath)
+	srv.Mount("/api/reciever", reciever.HTTPEntry())
 }
 
 func shutdown() {
@@ -109,7 +117,7 @@ func main() {
 	errCh := make(chan error, 5)
 	go func() {
 		for {
-			err, ok := <- errCh
+			err, ok := <-errCh
 			if !ok {
 				appLogger.Debug("errCh closed, exiting early error handler")
 				return

@@ -24,6 +24,7 @@ func NewConfig() *Config {
 		BuildSlots: map[string]int{
 			"x86_64:x86_64": 1,
 		},
+		RepoPath: "my-repo",
 	}
 }
 

@@ -15,5 +15,6 @@
     "CapacityProvider": "nomad",
     "BuildSlots": {
         "x86_64:x86_64": 5
-    }
+    },
+    "RepoPath": "my-repo"
 }
