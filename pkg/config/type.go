@@ -11,4 +11,5 @@ type Config struct {
 	RepoDataURLs     map[string]map[string]string
 	CapacityProvider string
 	BuildSlots       map[string]int
+	RepoPath         string
 }
