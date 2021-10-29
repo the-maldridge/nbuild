@@ -33,4 +33,7 @@ type Scheduler struct {
 
 	apiClient        *graph.APIClient
 	capacityProvider CapacityProvider
+
+	// Stop should be set true when the scheduler should stop
+	stop bool
 }

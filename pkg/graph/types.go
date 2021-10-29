@@ -45,7 +45,7 @@ type Manager struct {
 type APIClient struct {
 	l       hclog.Logger
 	hClient *http.Client
-	Url     string
+	url     string
 }
 
 // CheckoutManager handles a git checkout

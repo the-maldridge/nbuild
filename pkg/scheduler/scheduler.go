@@ -14,16 +14,20 @@ import (
 // provider.  The capacity provider will run builds at a maximum
 // degree of parallelism that is implementation specific and
 // potentially dynamic.
-func NewScheduler(l hclog.Logger, c CapacityProvider, url string) *Scheduler {
+func NewScheduler(l hclog.Logger, c CapacityProvider, url string) (*Scheduler, error) {
 	x := Scheduler{
 		l:                l.Named("scheduler"),
 		capacityProvider: c,
-		apiClient:        graph.NewAPIClient(l),
 		queueMutex:       new(sync.Mutex),
 	}
-	x.apiClient.Url = url
 
-	return &x
+	graph, err := graph.NewAPIClient(l, url)
+	if err != nil {
+		return nil, err
+	}
+	x.apiClient = graph
+
+	return &x, nil
 }
 
 // Pops a build off the queue and hands it off to the CapacityProvider.
@@ -99,11 +103,16 @@ func (s *Scheduler) Update() error {
 func (s *Scheduler) Run() {
 	s.Reconstruct() // Get tuples
 	s.Update()      // Now get real dispatchable
-	for {
+	for !s.stop {
 		err := s.send()
 		if err != nil {
 			// Don't try to send too often
 			time.Sleep(time.Second)
 		}
 	}
+}
+
+// Stop stops the scheduler
+func (s *Scheduler) Stop() {
+	s.stop = true
 }

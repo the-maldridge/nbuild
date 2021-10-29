@@ -15,24 +15,24 @@ import (
 )
 
 // NewAPIClient creates a new API client.
-func NewAPIClient(l hclog.Logger) *APIClient {
+func NewAPIClient(l hclog.Logger, url string) (*APIClient, error) {
 	x := APIClient{
 		l:       l.Named("client"),
 		hClient: &http.Client{Timeout: 30 * time.Second},
+		url: url,
 	}
-	return &x
+	if x.url == "" {
+		x.l.Warn("URL must not be empty!")
+		return nil, errors.New("url must be set")
+	}
+	return &x, nil
 }
 
 // General function to recieve a response
 func (c *APIClient) do(endpoint string, method string) (string, error) {
-	if c.Url == "" {
-		c.l.Warn("Url not set for API", "endpoint", endpoint)
-		return "", errors.New("url must be set")
-	}
-
 	var resp *http.Response
 	var err error
-	fullURL := "http://" + c.Url + "/api/graph" + endpoint
+	fullURL := c.url + endpoint
 	switch method {
 	case "GET":
 		resp, err = c.hClient.Get(fullURL)

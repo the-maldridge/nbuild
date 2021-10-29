@@ -5,7 +5,7 @@ chroot-git clone /void-packages-origin /hostrepo
 ln -s / /hostrepo/masterdir
 cd /hostrepo
 chroot-git remote add github git://github.com/void-linux/void-packages.git
-chroot-git fetch
+chroot-git fetch --all
 chroot-git reset --hard "$GIT_REV"
 cd -
 
