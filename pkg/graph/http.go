@@ -178,7 +178,7 @@ func (m *Manager) httpCleanTarget(w http.ResponseWriter, r *http.Request) {
 
 func (m *Manager) httpSyncToRev(w http.ResponseWriter, r *http.Request) {
 	if err := m.UpdateCheckout(); err != nil {
-		m.l.Warn("Checkout modified outside of nbuild, this is not supported")
+		m.l.Warn("Error updating", "error", err)
 		return
 	}
 

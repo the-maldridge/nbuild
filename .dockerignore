@@ -1,0 +1,6 @@
+**/void-packages/
+nomad/
+scripts/
+bitcask/
+Dockerfile
+config.json
