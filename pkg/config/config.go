@@ -7,9 +7,9 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
-// New returns a config object with default structures initialized.
-// The config can be loaded from other sources to override the
-// defaults.
+// NewConfig returns a config object with default structures
+// initialized.  The config can be loaded from other sources to
+// override the defaults.
 func NewConfig() *Config {
 	return &Config{
 		Specs: []types.SpecTuple{{"x86_64", "x86_64"}},
