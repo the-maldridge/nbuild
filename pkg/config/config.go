@@ -15,8 +15,8 @@ func NewConfig() *Config {
 		Specs: []types.SpecTuple{{"x86_64", "x86_64"}},
 		RepoDataURLs: map[string]map[string]string{
 			"x86_64": {
-				"main":    "http://alpha.de.repo.voidlinux.org/current/x86_64-repodata",
-				"nonfree": "http://alpha.de.repo.voidlinux.org/current/nonfree/x86_64-repodata",
+				"main":    "http://repo-fastly.voidlinux.org/current/x86_64-repodata",
+				"nonfree": "http://repo-fastly.voidlinux.org/current/nonfree/x86_64-repodata",
 				"local":   "file://void-packages/hostdir/binpkgs/x86_64-repodata",
 			},
 		},

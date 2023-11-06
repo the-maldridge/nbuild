@@ -62,7 +62,11 @@ func main() {
 		return
 	}
 	cap.SetSlots(cfg.BuildSlots)
-	scheduler := scheduler.NewScheduler(appLogger, cap, "localhost:8080")
+	scheduler, err := scheduler.NewScheduler(appLogger, cap, "localhost:8080")
+	if err != nil {
+		appLogger.Error("Couldn't initialize scheduler", "error", err)
+		return
+	}
 	go scheduler.Run()
 
 	srv.Mount("/api/scheduler", scheduler.HTTPEntry())
