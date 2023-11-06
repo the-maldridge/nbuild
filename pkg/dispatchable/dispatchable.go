@@ -3,29 +3,25 @@ package dispatchable
 import (
 	"sync"
 
-	"github.com/hashicorp/go-hclog"
-
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
-func NewDispatchFinder(l hclog.Logger, sliceAtoms []types.Atom) *DispatchFinder {
-	mAtoms := make(map[types.SpecTuple]types.Atom)
-	for _, atom := range sliceAtoms {
-		mAtoms[atom.Spec] = atom
+// NewDispatchFinder takes in a set of atoms and works out what can be
+// built across them.
+func NewDispatchFinder(opts ...Option) *DispatchFinder {
+	x := new(DispatchFinder)
+	x.AtomMu = new(sync.Mutex)
+	for _, o := range opts {
+		o(x)
 	}
-	x := DispatchFinder{
-		l:      l,
-		atoms:  mAtoms,
-		AtomMu: new(sync.Mutex),
-	}
-	return &x
+	return x
 }
 
 // IsDispatchable determines whether a specific package could be dispatched
 // right now.
 func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) bool {
 	hAtom := d.atoms[types.SpecTuple{spec.Host, spec.Host}]
-	for hdep, _ := range p.HostDepends {
+	for hdep := range p.HostDepends {
 		if _, ok := hAtom.Pkgs[hdep]; !ok {
 			d.l.Warn("Host dependency cannot be found in atom", "hdep", hdep, "pkg", p)
 			return false
@@ -36,7 +32,7 @@ func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) 
 	}
 
 	tAtom := d.atoms[spec]
-	for dep, _ := range p.MakeDepends {
+	for dep := range p.MakeDepends {
 		if _, ok := tAtom.Pkgs[dep]; !ok {
 			d.l.Warn("Dependency cannot be found in atom", "dep", dep, "pkg", p)
 			return false
@@ -45,7 +41,7 @@ func (d *DispatchFinder) IsDispatchable(spec types.SpecTuple, p *types.Package) 
 			return false
 		}
 	}
-	for dep, _ := range p.Depends {
+	for dep := range p.Depends {
 		if _, ok := tAtom.Pkgs[dep]; !ok {
 			d.l.Warn("Dependency cannot be found in atom", "dep", dep, "pkg", p)
 			return false

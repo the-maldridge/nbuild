@@ -19,7 +19,7 @@ func NewAPIClient(l hclog.Logger, url string) (*APIClient, error) {
 	x := APIClient{
 		l:       l.Named("client"),
 		hClient: &http.Client{Timeout: 30 * time.Second},
-		url: url,
+		url:     url,
 	}
 	if x.url == "" {
 		x.l.Warn("URL must not be empty!")

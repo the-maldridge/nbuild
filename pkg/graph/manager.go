@@ -176,7 +176,7 @@ func (m *Manager) GetDispatchable() map[types.SpecTuple][]*types.Package {
 		defer graph.PkgsMutex.Unlock()
 		atoms = append(atoms, graph.GetAtom())
 	}
-	finder := dispatchable.NewDispatchFinder(m.l, atoms)
+	finder := dispatchable.NewDispatchFinder(dispatchable.WithLogger(m.l), dispatchable.WithAtoms(atoms))
 	return finder.ImmediatelyDispatchable()
 }
 
