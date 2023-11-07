@@ -65,7 +65,11 @@ func main() {
 		return
 	}
 	cap.SetSlots(cfg.BuildSlots)
-	scheduler, err := scheduler.NewScheduler(appLogger, cap, "localhost:8080")
+	scheduler, err := scheduler.NewScheduler(
+		scheduler.WithLogger(appLogger),
+		scheduler.WithCapacityProvider(cap),
+		scheduler.WithGraphURL("localhost:8080"),
+	)
 	if err != nil {
 		appLogger.Error("Couldn't initialize scheduler", "error", err)
 		return

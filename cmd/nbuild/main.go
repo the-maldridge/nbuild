@@ -66,7 +66,11 @@ func doScheduler(appLogger hclog.Logger, errCh chan error, cfg *config.Config, s
 		return
 	}
 	cap.SetSlots(cfg.BuildSlots)
-	scheduler, err := scheduler.NewScheduler(appLogger, cap, "http://localhost:8080/api/graph")
+	scheduler, err := scheduler.NewScheduler(
+		scheduler.WithLogger(appLogger),
+		scheduler.WithCapacityProvider(cap),
+		scheduler.WithGraphURL("http://localhost:8080/api/graph"),
+	)
 	if err != nil {
 		appLogger.Error("Error initializing scheduler", "error", err)
 		errCh <- err

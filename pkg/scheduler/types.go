@@ -37,3 +37,6 @@ type Scheduler struct {
 	// Stop should be set true when the scheduler should stop
 	stop bool
 }
+
+// Option provides a convenient way to pass in options to the system.
+type Option func(s *Scheduler) error

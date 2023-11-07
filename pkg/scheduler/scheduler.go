@@ -6,28 +6,25 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-
-	"github.com/the-maldridge/nbuild/pkg/graph"
 )
 
 // NewScheduler returns a scheduler instance using the listed capacity
 // provider.  The capacity provider will run builds at a maximum
 // degree of parallelism that is implementation specific and
 // potentially dynamic.
-func NewScheduler(l hclog.Logger, c CapacityProvider, url string) (*Scheduler, error) {
-	x := Scheduler{
-		l:                l.Named("scheduler"),
-		capacityProvider: c,
-		queueMutex:       new(sync.Mutex),
+func NewScheduler(opts ...Option) (*Scheduler, error) {
+	x := &Scheduler{
+		l:          hclog.NewNullLogger(),
+		queueMutex: new(sync.Mutex),
 	}
 
-	graph, err := graph.NewAPIClient(l, url)
-	if err != nil {
-		return nil, err
+	for _, o := range opts {
+		if err := o(x); err != nil {
+			return nil, err
+		}
 	}
-	x.apiClient = graph
 
-	return &x, nil
+	return x, nil
 }
 
 // Pops a build off the queue and hands it off to the CapacityProvider.
@@ -47,7 +44,7 @@ func (s *Scheduler) send() error {
 	return nil
 }
 
-// Reconstruct rebuidls the queue from what is currently known to be
+// Reconstruct rebuilds the queue from what is currently known to be
 // running and what is currently dispatchable.
 func (s *Scheduler) Reconstruct() error {
 	dispatchable, err := s.apiClient.GetDispatchable()
