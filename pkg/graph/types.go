@@ -57,3 +57,6 @@ type CheckoutManager interface {
 	Checkout(string) ([]string, error)
 	At() (string, error)
 }
+
+// Option allows the manager to be configured in a nice dynamic way.
+type Option func(*Manager)

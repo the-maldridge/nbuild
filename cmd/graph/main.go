@@ -48,10 +48,13 @@ func main() {
 		return
 	}
 
-	mgr := graph.NewManager(appLogger, cfg.Specs)
-	mgr.EnablePersistence(store)
+	mgr := graph.NewManager(
+		graph.WithLogger(appLogger),
+		graph.WithSpecs(cfg.Specs),
+		graph.WithStorage(store),
+		graph.WithIndexURLs(cfg.RepoDataURLs),
+	)
 	mgr.Bootstrap()
-	mgr.SetIndexURLs(cfg.RepoDataURLs)
 	mgr.Clean()
 
 	scheduler.SetLogger(appLogger)

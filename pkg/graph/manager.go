@@ -10,51 +10,24 @@ import (
 	"github.com/the-maldridge/nbuild/pkg/dispatchable"
 	"github.com/the-maldridge/nbuild/pkg/repo"
 	"github.com/the-maldridge/nbuild/pkg/source"
-	"github.com/the-maldridge/nbuild/pkg/storage"
 	"github.com/the-maldridge/nbuild/pkg/types"
 )
 
 // NewManager creates a collection of graphs under a single manager
 // and returns the manager.  Graphs do not have state on return.
-func NewManager(l hclog.Logger, specs []types.SpecTuple) *Manager {
-	x := Manager{
-		l:        l.Named("graph"),
-		cm:       source.New(l),
+func NewManager(opts ...Option) *Manager {
+	x := &Manager{
+		l:        hclog.NewNullLogger(),
 		basepath: "void-packages",
 		graphs:   make(map[string]*PkgGraph),
-		specs:    specs,
 	}
-	for _, spec := range specs {
-		x.graphs[spec.String()] = New(l.Named("graph"), spec)
+	for _, o := range opts {
+		o(x)
 	}
 
 	x.idx = repo.NewIndexService(x.l)
-	return &x
-}
-
-// SetIndexURLs feeds in the paths to the URLs for each index related
-// to the archs that are being built by each spec.  The keys in this
-// map should be the targets from the SpecTuples.
-func (m *Manager) SetIndexURLs(urls map[string]map[string]string) {
-	for arch, indexes := range urls {
-		for repo, index := range indexes {
-			m.idx.LoadIndex(arch, repo, index)
-		}
-	}
-}
-
-// EnablePersistence provides a way to allow the graph manager to
-// persist storage atoms for each graph.  If not enabled, graphs will
-// not be persisted or loaded.
-func (m *Manager) EnablePersistence(s storage.Storage) {
-	m.storage = s
-}
-
-// OverrideBasepath allows you to change the location that the
-// checkout will be maintained in.
-func (m *Manager) OverrideBasepath(b string) {
-	m.basepath = b
-	m.cm.SetBasepath(b)
+	x.cm = source.New(x.l)
+	return x
 }
 
 // Bootstrap performs the initial download of the void-packages repo,

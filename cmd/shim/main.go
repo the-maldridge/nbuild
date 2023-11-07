@@ -60,18 +60,6 @@ func main() {
 		// Some random commit
 		repo.Checkout("61ba6baece2f5a065cc821f986cba3a4abd7c6e6")
 	case "multigraph":
-		mgr := graph.NewManager(appLogger, []types.SpecTuple{{"x86_64", "x86_64"}}) //, {"x86_64", "armv7l"}})
-		mgr.SetIndexURLs(map[string]map[string]string{
-			"x86_64": {
-				"main":    "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
-				"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata",
-			},
-			"armv7l": {
-				"main":    "http://mirrors.servercentral.com/voidlinux/current/armv7l-repodata",
-				"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/armv7l-repodata",
-			},
-		})
-
 		storage.SetLogger(appLogger)
 		storage.DoCallbacks()
 		store, err := storage.Initialize("bitcask")
@@ -79,7 +67,23 @@ func main() {
 			appLogger.Error("Couldn't initialize storage", "error", err)
 			return
 		}
-		mgr.EnablePersistence(store)
+
+		mgr := graph.NewManager(
+			graph.WithLogger(appLogger),
+			graph.WithSpecs([]types.SpecTuple{{"x86_64", "x86_64"}}),
+			graph.WithIndexURLs(map[string]map[string]string{
+				"x86_64": {
+					"main":    "http://mirrors.servercentral.com/voidlinux/current/x86_64-repodata",
+					"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/x86_64-repodata",
+				},
+				"armv7l": {
+					"main":    "http://mirrors.servercentral.com/voidlinux/current/armv7l-repodata",
+					"nonfree": "http://mirrors.servercentral.com/voidlinux/current/nonfree/armv7l-repodata",
+				},
+			}),
+			graph.WithStorage(store),
+		)
+
 		appLogger.Info("Bootstrapping multigraph", "return", mgr.Bootstrap())
 		mgr.UpdateCheckout()
 		mgr.SyncTo("e7ca6798247fb7a2d6373dbc48697041df4ebd67")
