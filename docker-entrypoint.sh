@@ -4,9 +4,7 @@ set -e
 
 chroot-git clone /void-packages-origin /hostrepo
 ln -s /hostrepo /opt/voidlinux/nbuild/void-packages
-cd /hostrepo
-chroot-git remote set-url origin https://github.com/void-linux/void-packages.git
-cd -
+chroot-git -C /hostrepo remote set-url origin https://github.com/void-linux/void-packages.git
 
 cat <<! >/hostrepo/etc/conf
 XBPS_CHROOT_CMD=ethereal
