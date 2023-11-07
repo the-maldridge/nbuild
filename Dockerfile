@@ -1,10 +1,11 @@
-FROM golang:1.16 as build
+ARG LIBC=glibc
+FROM golang:1.21 as build
 
 WORKDIR /nbuild
 COPY . .
 RUN go mod vendor && go build ./cmd/nbuild/main.go
 
-FROM ghcr.io/void-linux/xbps-src-masterdir:v20211105RC01-x86_64
+FROM ghcr.io/void-linux/void-buildroot-${LIBC}:20231006R1 AS image
 WORKDIR /opt/voidlinux/nbuild
 COPY --from=build /nbuild/main ./nbuild
 COPY docker-entrypoint.sh .
